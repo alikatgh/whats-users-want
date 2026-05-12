@@ -1,0 +1,211 @@
+site_name: What Users Want
+site_description: Data-science pipeline that turns 6,728 messy support tickets into a structured taxonomy of user wants, using local Gemma 3:4B and zero paid APIs.
+
+docs_dir: docs
+site_dir: site
+use_directory_urls: false
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.path
+    - navigation.footer
+    - navigation.prune
+    - toc.follow
+    - search.highlight
+    - search.share
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - announce.dismiss
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    logo: material/chart-bell-curve-cumulative
+    repo: fontawesome/brands/git-alt
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 4
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - pymdownx.caret
+  - pymdownx.keys
+
+nav:
+  - Home: README.md
+  - Dashboard (Streamlit): dashboard.md
+  - 101 — Course:
+      - About this course: 101/README.md
+      - How to use this course: 101/00-how-to-use-this-course.md
+      - 01 — Python foundations:
+          - Index: 101/01-python-foundations/README.md
+          - Paths and files: 101/01-python-foundations/01-paths-and-files.md
+          - Regex: 101/01-python-foundations/02-regex.md
+          - Strings and formatting: 101/01-python-foundations/03-strings-and-formatting.md
+          - Collections and comprehensions: 101/01-python-foundations/04-collections-and-comprehensions.md
+          - Error handling and soft-fail: 101/01-python-foundations/05-error-handling-and-soft-fail.md
+          - Type hints and modern Python: 101/01-python-foundations/06-type-hints-and-modern-python.md
+          - Decorators, closures, CLI: 101/01-python-foundations/07-decorators-closures-and-cli.md
+      - 02 — Data with pandas:
+          - Index: 101/02-data-with-pandas/README.md
+          - Reading messy CSV: 101/02-data-with-pandas/01-reading-messy-csv.md
+          - Cleaning and canonicalize: 101/02-data-with-pandas/02-cleaning-and-canonicalize.md
+          - Feature engineering: 101/02-data-with-pandas/03-feature-engineering.md
+          - Groupby and aggregations: 101/02-data-with-pandas/04-groupby-and-aggregations.md
+          - Merge and join: 101/02-data-with-pandas/05-merge-and-join.md
+          - Pivot, crosstab, categorical: 101/02-data-with-pandas/06-pivot-crosstab-and-categorical.md
+      - 03 — Text and NLP:
+          - Index: 101/03-text-and-nlp/README.md
+          - Tokens and TF-IDF: 101/03-text-and-nlp/01-tokens-and-tf-idf.md
+          - Stopwords and ngrams: 101/03-text-and-nlp/02-stopwords-and-ngrams.md
+          - Embeddings intro: 101/03-text-and-nlp/03-embeddings-intro.md
+          - Multilingual embeddings: 101/03-text-and-nlp/04-multilingual-embeddings.md
+          - Cosine similarity and centroids: 101/03-text-and-nlp/05-cosine-similarity-and-centroids.md
+          - Evidence and text features: 101/03-text-and-nlp/06-evidence-and-text-features.md
+      - 04 — Dimensionality and clustering:
+          - Index: 101/04-dimensionality-and-clustering/README.md
+          - Curse of dimensionality: 101/04-dimensionality-and-clustering/01-curse-of-dimensionality.md
+          - UMAP: 101/04-dimensionality-and-clustering/02-umap.md
+          - Density clustering (HDBSCAN): 101/04-dimensionality-and-clustering/03-density-clustering-hdbscan.md
+          - KMeans fallback: 101/04-dimensionality-and-clustering/04-kmeans-fallback.md
+          - BERTopic and c-TF-IDF: 101/04-dimensionality-and-clustering/05-bertopic-and-c-tfidf.md
+          - Cluster quality and centroids: 101/04-dimensionality-and-clustering/06-cluster-quality-and-centroids.md
+      - 05 — Statistics:
+          - Index: 101/05-statistics/README.md
+          - OLS with fixed effects: 101/05-statistics/01-ols-with-fixed-effects.md
+          - Robust standard errors: 101/05-statistics/02-robust-standard-errors.md
+          - Linear probability model: 101/05-statistics/03-linear-probability-model.md
+          - Two-proportion z-test: 101/05-statistics/04-two-proportion-z-test.md
+          - Percentile capping and residuals: 101/05-statistics/05-percentile-capping-and-residuals.md
+      - 06 — LLMs and prompts:
+          - Index: 101/06-llms-and-prompts/README.md
+          - What is a prompt: 101/06-llms-and-prompts/01-what-is-a-prompt.md
+          - JSON mode and schemas: 101/06-llms-and-prompts/02-json-mode-and-schemas.md
+          - Defensive prompting: 101/06-llms-and-prompts/03-defensive-prompting.md
+          - Validation and quality flags: 101/06-llms-and-prompts/04-validation-and-quality-flags.md
+          - Enum aliases and normalization: 101/06-llms-and-prompts/05-enum-aliases-and-normalization.md
+          - Rules vs LLM vs hybrid: 101/06-llms-and-prompts/06-rules-vs-llm-vs-hybrid.md
+          - Local models with Ollama: 101/06-llms-and-prompts/07-local-models-with-ollama.md
+      - 07 — Databases and storage:
+          - Index: 101/07-databases-and-storage/README.md
+          - CSV vs Parquet: 101/07-databases-and-storage/01-csv-vs-parquet.md
+          - DuckDB basics: 101/07-databases-and-storage/02-duckdb-basics.md
+          - Information schema: 101/07-databases-and-storage/03-information-schema-and-introspection.md
+          - Parameterized queries: 101/07-databases-and-storage/04-parameterized-queries-and-injection.md
+      - 08 — Visualization:
+          - Index: 101/08-visualization/README.md
+          - Static charts (matplotlib): 101/08-visualization/01-static-charts-with-matplotlib.md
+          - Interactive charts (Plotly): 101/08-visualization/02-interactive-charts-with-plotly.md
+          - Heatmaps and crosstabs: 101/08-visualization/03-heatmaps-and-crosstabs.md
+          - Hiding axes and color scales: 101/08-visualization/04-when-to-hide-axes-and-color-scales.md
+      - 09 — Streamlit dashboards:
+          - Index: 101/09-streamlit-dashboards/README.md
+          - Mental model: 101/09-streamlit-dashboards/01-streamlit-mental-model.md
+          - Multipage apps: 101/09-streamlit-dashboards/02-multipage-apps.md
+          - Widgets and state: 101/09-streamlit-dashboards/03-widgets-and-state.md
+          - Caching: 101/09-streamlit-dashboards/04-caching.md
+          - Layouts: 101/09-streamlit-dashboards/05-layouts.md
+          - Dataframes, charts, downloads: 101/09-streamlit-dashboards/06-dataframes-charts-and-downloads.md
+      - 10 — Pipeline design:
+          - Index: 101/10-pipeline-design/README.md
+          - Stages and runs: 101/10-pipeline-design/01-stages-and-runs.md
+          - Soft-fail imports: 101/10-pipeline-design/02-soft-fail-imports.md
+          - Priority fallback: 101/10-pipeline-design/03-priority-fallback.md
+          - Marker-based idempotency: 101/10-pipeline-design/04-marker-based-idempotency.md
+          - Metadata and provenance: 101/10-pipeline-design/05-metadata-and-provenance.md
+          - Orchestrator pattern: 101/10-pipeline-design/06-orchestrator-pattern.md
+      - 11 — The findings:
+          - Index: 101/11-the-findings/README.md
+          - From categories to wants: 101/11-the-findings/01-from-categories-to-wants.md
+          - The want taxonomy emerged: 101/11-the-findings/02-the-want-taxonomy-emerged.md
+          - Anxious vs angry: 101/11-the-findings/03-anxious-vs-angry.md
+          - Money, trust, urgency: 101/11-the-findings/04-money-trust-urgency.md
+      - 12 — Exercises:
+          - Index: 101/12-exercises/README.md
+          - Add an evidence flag: 101/12-exercises/01-add-a-new-evidence-flag.md
+          - Add a desire: 101/12-exercises/02-add-a-new-desire.md
+          - Add an LLM job: 101/12-exercises/03-add-a-new-llm-job.md
+          - Add a dashboard page: 101/12-exercises/04-add-a-dashboard-page.md
+          - Cluster with different k: 101/12-exercises/05-cluster-with-different-k.md
+      - Glossary: 101/glossary.md
+  - High-level:
+      - Overview: 01-overview.md
+      - Pipeline (high level): 02-pipeline.md
+      - Features & Models: 03-features-and-models.md
+      - Output files: 04-outputs.md
+      - Findings: 05-findings.md
+      - Glossary: 06-glossary.md
+      - Presenter script: 07-presenter-script.md
+      - Running it: 08-running-it.md
+      - Limitations: 09-limitations.md
+  - Engineering:
+      - Index: engineering/README.md
+      - 00 — Architecture: engineering/00-architecture.md
+      - 01 — Stage 1 — pipeline: engineering/01-stage1-pipeline.md
+      - 02 — Stage 2 — BERTopic: engineering/02-stage2-bertopic.md
+      - 03 — Stage 3 — insight layer: engineering/03-stage3-insight.md
+      - 04 — Stage 4 — outlier split: engineering/04-stage4-outlier-split.md
+      - 05 — Stage 5 — local LLM: engineering/05-stage5-llm.md
+      - 06 — Stage 6 — taxonomy: engineering/06-stage6-taxonomy.md
+      - 07 — Data schemas: engineering/07-data-schemas.md
+      - 08 — Prompts & extraction: engineering/08-prompts-and-extraction.md
+      - 09 — Formulas cheatsheet: engineering/09-formulas-cheatsheet.md
+      - 10 — API docs (pdoc): engineering/10-api-docs.md
+  - API Reference (pdoc): api/index.html
+
+extra:
+  generator: false
+
+extra_css:
+  - stylesheets/extra.css
+
+copyright: >
+  6,728 tickets · 17 discovered user-want clusters · 0 paid API calls

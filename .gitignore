@@ -1,0 +1,31 @@
+# Local environment
+.venv/
+.env
+.env.*
+.webui_secret_key
+.claude/
+.matplotlib-cache/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS/editor noise
+.DS_Store
+
+# Private source data and generated analysis artifacts.
+# These may contain support-ticket text, IDs, phone numbers, URLs, or model output.
+data_*.csv
+outputs/
+site/
+
+# Generated documentation artifacts; rebuild with ./scripts/build_docs.sh.
+docs/api/
+
+# Runtime logs and local databases
+*.log
+*.duckdb

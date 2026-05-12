@@ -1,0 +1,137 @@
+/* Polish for the documentation site. Loaded via mkdocs.yml extra_css. */
+
+/* Tighter line-height in tables so module-index tables don't double-line. */
+.md-typeset table:not([class]) td {
+  line-height: 1.45;
+  font-size: 0.78rem;
+  vertical-align: top;
+}
+.md-typeset table:not([class]) th {
+  font-size: 0.78rem;
+  vertical-align: top;
+}
+
+/* Make section headings stand out a bit more in dark mode. */
+[data-md-color-scheme="slate"] .md-typeset h2 {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 0.3rem;
+}
+[data-md-color-scheme="default"] .md-typeset h2 {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding-bottom: 0.3rem;
+}
+
+/* Make inline code subtler so code-laden paragraphs aren't visually loud. */
+.md-typeset code {
+  font-size: 0.85em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.2rem;
+}
+
+/* Module-index table column widths. First column narrow, last column wide. */
+.md-typeset table:not([class]) th:first-child,
+.md-typeset table:not([class]) td:first-child {
+  width: 3rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.md-typeset table:not([class]) th:nth-child(2),
+.md-typeset table:not([class]) td:nth-child(2) {
+  width: 22rem;
+  white-space: nowrap;
+}
+
+/* Cleaner header in light mode. */
+[data-md-color-scheme="default"] .md-header {
+  background: linear-gradient(135deg, #4527a0 0%, #311b92 100%);
+}
+
+/* Slightly more relaxed paragraph spacing in lessons. */
+.md-typeset p,
+.md-typeset li {
+  line-height: 1.65;
+}
+
+/* Improve nav: keep section headers from overlapping nav items. */
+.md-nav__title {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* Add a subtle background to inline emphasis used as terms. */
+.md-typeset strong {
+  color: var(--md-default-fg-color);
+}
+
+/* Wider main content area so long lesson tables fit. */
+@media screen and (min-width: 76.25em) {
+  .md-grid {
+    max-width: 76rem;
+  }
+}
+
+/* ---------- Sidebar fixes ---------- */
+
+/* Make the primary sidebar (left nav) scroll independently of the page so it
+   never spills past the viewport. Material's default partially does this, but
+   tall navs (like our 100+ entry course nav) can still overflow. */
+.md-sidebar--primary,
+.md-sidebar--secondary {
+  height: calc(100vh - 4.8rem);
+  overflow: hidden;
+}
+.md-sidebar--primary .md-sidebar__scrollwrap,
+.md-sidebar--secondary .md-sidebar__scrollwrap {
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Give the sidebar a solid background that matches the page so the dark
+   footer can't show through visual gaps. */
+[data-md-color-scheme="default"] .md-sidebar--primary,
+[data-md-color-scheme="default"] .md-sidebar--secondary {
+  background-color: var(--md-default-bg-color);
+}
+[data-md-color-scheme="slate"] .md-sidebar--primary,
+[data-md-color-scheme="slate"] .md-sidebar--secondary {
+  background-color: var(--md-default-bg-color);
+}
+
+/* ---------- Footer fixes ---------- */
+
+/* The Material footer is full-width by default. Material renders both
+   "Previous / Next" and the copyright in this region. We want the footer
+   to sit *below* the page grid (sidebars + content), not behind the sidebar.
+   Resetting position and stacking context guarantees the sidebar wins on
+   z-index. */
+.md-footer {
+  position: relative;
+  z-index: 0;
+}
+.md-sidebar {
+  z-index: 2;
+}
+
+/* Tighten the prev/next link area so it doesn't dominate. */
+.md-footer__inner {
+  padding: 0.6rem 0.4rem;
+}
+.md-footer__link {
+  padding: 0.6rem 0.8rem;
+}
+.md-footer__title {
+  font-size: 0.78rem;
+}
+.md-footer__direction {
+  font-size: 0.65rem;
+  opacity: 0.7;
+}
+
+/* Copyright row under the prev/next bar */
+.md-footer-meta__inner {
+  padding: 0.5rem 0.6rem;
+}
+.md-copyright {
+  font-size: 0.72rem;
+}
