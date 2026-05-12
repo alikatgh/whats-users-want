@@ -186,6 +186,7 @@ nav:
       - Presenter script: 07-presenter-script.md
       - Running it: 08-running-it.md
       - Limitations: 09-limitations.md
+      - RunPod GPU 101: 10-runpod-gpu-101.md
   - Engineering:
       - Index: engineering/README.md
       - 00 — Architecture: engineering/00-architecture.md

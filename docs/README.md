@@ -13,11 +13,12 @@ Read in this order before the presentation:
 7. [07-presenter-script.md](07-presenter-script.md) — a slide-by-slide script. What to say, what to show.
 8. [08-running-it.md](08-running-it.md) — exact commands to reproduce or extend the analysis.
 9. [09-limitations.md](09-limitations.md) — what this analysis cannot tell you. Read this before someone asks during Q&A.
+10. [10-runpod-gpu-101.md](10-runpod-gpu-101.md) — what happens after renting a GPU: terminal access, downloads, costs, uploads, and when to stop the pod.
 
 For deep "how does it work" engineering questions, the next folder over has it:
 
-10. [engineering/](engineering/) — meticulous, function-by-function deep dives, exact formulas, all prompts, all output schemas.
-11. [api/](api/) — auto-generated browsable HTML API docs from script docstrings. Open [api/index.html](api/index.html) in a browser.
+11. [engineering/](engineering/) — meticulous, function-by-function deep dives, exact formulas, all prompts, all output schemas.
+12. [api/](api/) — auto-generated browsable HTML API docs from script docstrings. Open [api/index.html](api/index.html) in a browser.
 
 ## Building the full styled site
 
