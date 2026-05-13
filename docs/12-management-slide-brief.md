@@ -422,6 +422,41 @@ thousands of tickets. This analysis keeps the examples but adds structure:
 - which need escalation,
 - which support playbooks should change.
 
+## Backup Explanation If They Ask How The Timeline Numbers Were Calculated
+
+The timeline is not a keyword search and not a manual Excel filter.
+
+Method:
+
+1. Start from the manager-maintained ticket export.
+2. Clean it into `6,702` analysis-ready support records.
+3. Use local Mistral/Ollama to deeply read high-signal records and extract the
+   actual user want.
+4. Cluster those extracted wants into repeated user-want groups.
+5. Map every analysis-ready support record to the closest discovered want using
+   multilingual sentence embeddings.
+6. Count mapped records by month.
+
+Formula for one point on the chart:
+
+```text
+records = count(support records)
+where semantic want = selected line
+and month(date_raw) = selected month
+```
+
+Why this differs from filtering for `"restore"` in Google Sheets:
+
+- A keyword filter only finds rows containing that exact word.
+- The semantic want count also catches "unban", "blocked account", "cannot
+  access", "whitelist", "recover", screenshots/IDs with little text, and
+  multilingual wording that means the same operational problem.
+- In the current run, the literal keyword `"restore"` appears in about `196`
+  rows, while the semantic "Regain access to my account" family is much larger
+  because many users ask for the same outcome without using the word "restore".
+- The dashboard now has an audit panel where one chart point can be opened and
+  the exact underlying ticket rows can be downloaded.
+
 ## Backup Explanation If They Say "We Already Talk To Users"
 
 Yes, and we should continue. This project does not replace direct user contact.

@@ -66,6 +66,24 @@ def _status_color(status: object) -> str:
     return "#64748b"
 
 
+def _build_assignment_audit(full_assignments: pd.DataFrame | None) -> pd.DataFrame:
+    """Prepare the full-corpus assignment table for method/audit drill-downs."""
+    if full_assignments is None or full_assignments.empty:
+        return pd.DataFrame()
+    audit = full_assignments.copy()
+    if "assigned_want_id" in audit.columns:
+        audit["assigned_want_id"] = pd.to_numeric(audit["assigned_want_id"], errors="coerce").astype("Int64")
+    audit["display_want"] = _unique_want_titles(audit)
+    if "date_raw" in audit.columns:
+        audit["date_for_audit"] = pd.to_datetime(audit["date_raw"], errors="coerce", dayfirst=True)
+    elif "date" in audit.columns:
+        audit["date_for_audit"] = pd.to_datetime(audit["date"], errors="coerce")
+    else:
+        audit["date_for_audit"] = pd.NaT
+    audit["month"] = audit["date_for_audit"].dt.to_period("M").astype(str)
+    return audit
+
+
 st.title("Macro and micro reality")
 st.markdown(
     """
@@ -89,6 +107,7 @@ emerging = maybe_load_csv(run_dir, "longitudinal_emerging_wants.csv")
 journeys = maybe_load_csv(run_dir, "longitudinal_user_journeys.csv")
 events = maybe_load_csv(run_dir, "longitudinal_user_journey_events.csv")
 archetypes = maybe_load_csv(run_dir, "longitudinal_journey_archetypes.csv")
+full_assignments = maybe_load_csv(run_dir, "user_wants_all_assignments.csv")
 
 missing = [
     name
@@ -126,6 +145,7 @@ emerging = emerging.copy()
 journeys = journeys.copy()
 events = events.copy()
 archetypes = archetypes.copy()
+assignment_audit = _build_assignment_audit(full_assignments)
 
 monthly["display_want"] = _unique_want_titles(monthly)
 emerging["display_want"] = _unique_want_titles(emerging)
@@ -167,12 +187,86 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+with st.expander("How these timeline numbers are calculated", expanded=False):
+    st.markdown(
+        """
+        **Short version:** this chart is not a keyword search. It counts
+        support records that were mapped to an AI-discovered user want.
+
+        **Pipeline used for this page:**
+
+        1. Start from the manager-maintained export and clean it into analysis-ready support records.
+        2. Run the high-signal records through local Mistral/Ollama to extract the actual user want.
+        3. Cluster those extracted wants into repeated user-want groups.
+        4. Map every analysis-ready record to the nearest discovered want using multilingual embeddings.
+        5. Count `records` by `assigned_want_id` and calendar month.
+
+        **Formula behind one point on the line:**
+
+        ```text
+        records = count(rows)
+        where selected semantic want = selected line
+        and month(date_raw) = selected month
+        ```
+
+        **Why this differs from filtering Excel for "restore":**
+
+        A keyword filter only counts rows that literally contain that word.
+        The model-based count also includes the same intent written as
+        "unban", "blocked account", "cannot access", "whitelist", "recover",
+        screenshots/IDs with little text, and other multilingual wording.
+        The tradeoff is that projected rows have confidence bands and review
+        flags, so uncertainty is visible instead of hidden.
+        """
+    )
+    method_cols = st.columns(4)
+    method_cols[0].metric("Rows counted by page", f"{records:,}")
+    method_cols[1].metric("Complete months used", f"{len(complete_months)}")
+    method_cols[2].metric(
+        "Mapped assignment rows",
+        f"{len(assignment_audit):,}" if len(assignment_audit) else "-",
+    )
+    method_cols[3].metric(
+        "Source table",
+        "user_wants_all_assignments.csv" if len(assignment_audit) else "missing",
+    )
+
 st.subheader("Macro timeline: what changed month by month")
 st.caption(
     "Trend comparisons use complete months only. A partial final month is excluded from the default chart so it does not fake a decline."
 )
+combine_duplicate_titles = st.toggle(
+    "Combine clusters with the same human title",
+    value=True,
+    help=(
+        "Management view: combine subclusters that received the same human title. "
+        "Turn off to audit each model cluster ID separately."
+    ),
+)
+if combine_duplicate_titles:
+    monthly_chart = (
+        monthly.groupby(["month", "month_date", "want_title"], as_index=False)
+        .agg(
+            records=("records", "sum"),
+            unique_users=("unique_users", "sum"),
+            failed_or_open_records=("failed_or_open_records", "sum"),
+            review_queue_records=("review_queue_records", "sum"),
+        )
+        .rename(columns={"want_title": "display_want"})
+    )
+    monthly_chart["failed_or_open_share"] = (
+        monthly_chart["failed_or_open_records"] / monthly_chart["records"].clip(lower=1)
+    )
+    monthly_chart["review_queue_share"] = (
+        monthly_chart["review_queue_records"] / monthly_chart["records"].clip(lower=1)
+    )
+    audit_match_col = "want_title"
+else:
+    monthly_chart = monthly.copy()
+    audit_match_col = "display_want"
+
 include_partial = st.toggle("Include partial months", value=False)
-trend_source = monthly if include_partial else monthly[monthly["month"].astype(str).isin(complete_months)]
+trend_source = monthly_chart if include_partial else monthly_chart[monthly_chart["month"].astype(str).isin(complete_months)]
 top_titles = (
     trend_source.groupby("display_want")["records"]
     .sum()
@@ -194,6 +288,120 @@ if len(trend_view):
     )
     fig.update_layout(margin=dict(l=10, r=10, t=18, b=10), legend=dict(orientation="h", y=-0.24))
     st.plotly_chart(fig, width="stretch")
+
+if len(assignment_audit):
+    with st.expander("Audit one timeline number", expanded=False):
+        audit_options = selected_titles or top_titles
+        audit_want = st.selectbox("Want line to audit", audit_options)
+        month_options = (
+            trend_source[trend_source["display_want"].eq(audit_want)]["month"]
+            .dropna()
+            .astype(str)
+            .sort_values()
+            .unique()
+            .tolist()
+        )
+        if month_options:
+            default_month_idx = len(month_options) - 1
+            audit_month = st.selectbox("Month to audit", month_options, index=default_month_idx)
+            audit_rows = assignment_audit[
+                assignment_audit[audit_match_col].eq(audit_want)
+                & assignment_audit["month"].astype(str).eq(str(audit_month))
+            ].copy()
+            all_time_rows = assignment_audit[assignment_audit[audit_match_col].eq(audit_want)].copy()
+            chart_count = int(
+                trend_source[
+                    trend_source["display_want"].eq(audit_want)
+                    & trend_source["month"].astype(str).eq(str(audit_month))
+                ]["records"].sum()
+            )
+
+            a1, a2, a3 = st.columns(3)
+            a1.metric("Chart count for this month", f"{chart_count:,}")
+            a2.metric("Underlying rows found", f"{len(audit_rows):,}")
+            a3.metric("All-time rows for this want", f"{len(all_time_rows):,}")
+            st.caption(
+                "If the first two numbers match, the point on the chart is reproducible from the underlying assignment table."
+            )
+
+            keyword = st.text_input(
+                "Compare against a literal keyword filter",
+                value="restore",
+                help="This shows why a spreadsheet keyword search can be much smaller than the semantic want count.",
+            )
+            text_cols = [c for c in ["question_flat", "question"] if c in assignment_audit.columns]
+            if keyword and text_cols:
+                haystack = assignment_audit[text_cols].fillna("").astype(str).agg(" ".join, axis=1)
+                keyword_mask = haystack.str.contains(keyword, case=False, regex=False, na=False)
+                semantic_mask = assignment_audit[audit_match_col].eq(audit_want)
+                month_mask = assignment_audit["month"].astype(str).eq(str(audit_month))
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric(f'Rows containing "{keyword}"', f"{int(keyword_mask.sum()):,}")
+                k2.metric("Semantic want rows", f"{int(semantic_mask.sum()):,}")
+                k3.metric(
+                    f'"{keyword}" in selected month',
+                    f"{int((keyword_mask & month_mask).sum()):,}",
+                )
+                k4.metric(
+                    "Semantic rows in selected month",
+                    f"{int((semantic_mask & month_mask).sum()):,}",
+                )
+                st.caption(
+                    f'Keyword rows answer “where does the text contain `{keyword}`?”. '
+                    "Semantic rows answer “where is the user trying to accomplish this want?”."
+                )
+
+            show_cols = [
+                "source_row",
+                "date_raw",
+                "manager",
+                "uid",
+                "category",
+                "status_en",
+                "assigned_want_id",
+                "want_title",
+                "assignment_confidence",
+                "confidence_band",
+                "review_reason",
+                "question_flat",
+            ]
+            show_cols = [c for c in show_cols if c in audit_rows.columns]
+            display_audit = audit_rows[show_cols].copy()
+            if "assignment_confidence" in display_audit.columns:
+                display_audit["assignment_confidence"] = pd.to_numeric(
+                    display_audit["assignment_confidence"],
+                    errors="coerce",
+                ).round(3)
+            st.dataframe(
+                display_audit.rename(
+                    columns={
+                        "source_row": "Ticket #",
+                        "date_raw": "Date",
+                        "manager": "Manager",
+                        "uid": "UID",
+                        "category": "Category",
+                        "status_en": "Status",
+                        "assigned_want_id": "Cluster ID",
+                        "want_title": "Mapped want",
+                        "assignment_confidence": "Mapping confidence",
+                        "confidence_band": "Confidence band",
+                        "review_reason": "Review reason",
+                        "question_flat": "Ticket text",
+                    }
+                ),
+                width="stretch",
+                hide_index=True,
+                height=360,
+            )
+            st.download_button(
+                "Download audited rows",
+                audit_rows.to_csv(index=False).encode("utf-8"),
+                file_name=f"audit_{run_dir.name}_{audit_month}_{audit_want[:40].replace(' ', '_')}.csv",
+                mime="text/csv",
+                icon=":material/download:",
+            )
+        else:
+            st.info("No monthly records are available for this selected want.")
 
 trend_table = (
     emerging.sort_values(["momentum_score", "recent_records"], ascending=False)
