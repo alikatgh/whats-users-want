@@ -54,6 +54,8 @@ record at management scale.
 - We analyzed `6,702` analysis-ready support records from the export.
 - The current RunPod run deeply read `1,348` high-signal records with Mistral Small 3.2 24B and mapped all `6,702` analysis-ready records to the discovered wants.
 - The system found `20` repeated user-want clusters in the current evidence layer.
+- The model output is not just counts: it separates literal request from actual user intent, extracts user emotion, trust/money/safety risk, missing evidence, support next step, and product/process opportunity.
+- The dashboard now includes a model-only readout: category-vs-intent mismatch, intents crossing multiple source categories, missing-evidence patterns, and an AI-created operating backlog.
 - If we decide to spend remaining RunPod credits, the same run can resume and deeply read about `6,681` useful non-empty records.
 - The largest repeated wants are about account recovery, unban guidance, group visibility, scams/fraud, diamonds, SVIP access, and ban reason transparency.
 - The workflow produces auditable files: CSVs, Excel workbooks, Markdown findings, and dashboard pages.
@@ -172,6 +174,25 @@ management.
 
 The AI is not deciding what to do to a user. It is summarizing patterns and
 making the repeated intents visible.
+
+### Slide 5B - Why This Is Not Just A Pivot Table
+
+**Title:** The model adds the layer a spreadsheet cannot infer
+
+**On-slide bullets:**
+
+- A category pivot counts the label managers used; the model infers what the user is trying to accomplish.
+- The same intent can appear across many source categories, managers, languages, and wording styles.
+- The model separates "what the user literally asked" from "what they actually need."
+- It extracts missing evidence from free-text notes: ban reason, transaction proof, voice sample, screenshots, IDs, timestamps.
+- It synthesizes support playbooks and product/process fixes from repeated cases.
+
+**Speaker note:**
+
+This is the strongest defense of the GPU/model work. If the presentation only
+shows bars, it looks like a spreadsheet. The value is the semantic layer:
+intent, risk, missing evidence, and operating actions that are not present as
+clean spreadsheet columns.
 
 ### Slide 6 - Headline Finding
 

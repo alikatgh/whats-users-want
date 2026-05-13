@@ -1,6 +1,8 @@
 """Executive briefing page for management presentations."""
 from __future__ import annotations
 
+import ast
+from collections import Counter
 import html
 import sys
 from pathlib import Path
@@ -62,6 +64,53 @@ def _panel(title: str, body: str, class_name: str = "wwu-panel") -> None:
     )
 
 
+def _clean_text(value: object, fallback: str = "-") -> str:
+    text = str(value or "").strip()
+    if not text or text.lower() in {"nan", "none", "null"}:
+        return fallback
+    return text
+
+
+def _short(value: object, limit: int = 150) -> str:
+    text = _clean_text(value, "")
+    if len(text) <= limit:
+        return text or "-"
+    return text[: limit - 1].rstrip() + "…"
+
+
+def _mode(series: pd.Series) -> str:
+    values = [
+        _clean_text(v, "")
+        for v in series.dropna().tolist()
+        if _clean_text(v, "")
+    ]
+    return Counter(values).most_common(1)[0][0] if values else "-"
+
+
+def _parse_list_cell(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [_clean_text(v, "") for v in value if _clean_text(v, "")]
+    text = _clean_text(value, "")
+    if not text:
+        return []
+    try:
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, list):
+            return [_clean_text(v, "") for v in parsed if _clean_text(v, "")]
+    except (SyntaxError, ValueError):
+        pass
+    return [text]
+
+
+def _top_list_items(series: pd.Series, limit: int = 3) -> str:
+    counts: Counter[str] = Counter()
+    for value in series.dropna():
+        counts.update(_parse_list_cell(value))
+    if not counts:
+        return "-"
+    return ", ".join(f"{item} ({count})" for item, count in counts.most_common(limit))
+
+
 st.title("Executive briefing")
 st.markdown(
     """
@@ -94,12 +143,12 @@ if taxonomy is None or taxonomy.empty:
 human_labels = load_human_labels(run_dir)
 taxonomy = attach_friendly_titles(taxonomy, human_labels)
 taxonomy["theme"] = taxonomy.apply(_theme, axis=1)
+title_field = "want_display_title" if "want_display_title" in taxonomy.columns else "want_title"
+title_lookup = dict(zip(taxonomy["want_id"], taxonomy[title_field]))
 volume_source = taxonomy.copy()
 volume_col = "size"
 share_col = "share"
 if full_summary is not None and not full_summary.empty and "assigned_want_id" in full_summary.columns:
-    title_field = "want_display_title" if "want_display_title" in taxonomy.columns else "want_title"
-    title_lookup = dict(zip(taxonomy["want_id"], taxonomy[title_field]))
     meta_cols = [
         "want_id",
         "theme",
@@ -139,6 +188,47 @@ top3_share = (
 top = volume_source.sort_values(volume_col, ascending=False).iloc[0]
 money_top = taxonomy.sort_values("avg_money_risk", ascending=False).iloc[0] if "avg_money_risk" in taxonomy.columns else top
 trust_top = taxonomy.sort_values("avg_trust_risk", ascending=False).iloc[0] if "avg_trust_risk" in taxonomy.columns else top
+
+extractions = maybe_load_csv(run_dir, extraction_info.get("csv_name") or "llm_extractions.csv")
+ai_context = pd.DataFrame()
+if assignments is not None and not assignments.empty:
+    ai_context = assignments.copy()
+    ai_context["source_row"] = ai_context["source_row"].astype(str)
+    if extractions is not None and not extractions.empty:
+        extractions = extractions.copy()
+        extractions["source_row"] = extractions["source_row"].astype(str)
+        extraction_cols = [
+            "source_row",
+            "actual_user_want",
+            "literal_request",
+            "evidence_missing",
+            "evidence_present",
+            "needs_human_review",
+        ]
+        extraction_cols = [c for c in extraction_cols if c in extractions.columns]
+        ai_context = ai_context.merge(
+            extractions[extraction_cols].drop_duplicates("source_row"),
+            on="source_row",
+            how="left",
+        )
+    if enriched is not None and not enriched.empty:
+        enriched_context = enriched.copy()
+        enriched_context["source_row"] = enriched_context["source_row"].astype(str)
+        context_cols = [
+            "source_row",
+            "category",
+            "primary_desire",
+            "manager",
+            "status_en",
+            "question_flat",
+        ]
+        context_cols = [c for c in context_cols if c in enriched_context.columns]
+        ai_context = ai_context.merge(
+            enriched_context[context_cols].drop_duplicates("source_row"),
+            on="source_row",
+            how="left",
+        )
+    ai_context["want_display_title"] = ai_context["want_id"].map(title_lookup).fillna(ai_context.get("want_label", ""))
 
 st.subheader("The one-slide answer")
 k1, k2, k3, k4, k5 = st.columns(5)
@@ -182,6 +272,147 @@ with col3:
         "Highest trust risk",
         f"<strong>{html.escape(str(trust_top.get('want_display_title') or trust_top.get('want_title') or trust_top.get('want_label')))}</strong><br>"
         f"Average trust risk {float(trust_top.get('avg_trust_risk', 0)):.2f}/5.",
+    )
+
+st.subheader("What the model adds that a pivot table cannot")
+st.caption(
+    "Counts are the easy part. The model work is the semantic layer: it separates the literal request "
+    "from the actual user intent, finds the same intent across different categories, extracts evidence gaps, "
+    "and turns repeated cases into operating actions."
+)
+
+category_panel = "The source categories are useful operational labels, but they are not the user's goal."
+intent_span_panel = "The same user goal can appear under several source categories and managers."
+if full_assignments is not None and not full_assignments.empty:
+    full_signal = full_assignments.copy()
+    if "assigned_want_id" in full_signal.columns:
+        full_signal["want_display_title"] = full_signal["assigned_want_id"].map(title_lookup).fillna(
+            full_signal.get("want_title", "")
+        )
+    if {"category", "assigned_want_id"}.issubset(full_signal.columns):
+        cat_stats = (
+            full_signal.assign(category=full_signal["category"].fillna("(missing)").astype(str))
+            .groupby("category", as_index=False)
+            .agg(
+                records=("source_row", "count"),
+                wants=("assigned_want_id", "nunique"),
+                managers=("manager", "nunique") if "manager" in full_signal.columns else ("source_row", "count"),
+            )
+            .query("records >= 50")
+            .sort_values(["wants", "records"], ascending=False)
+        )
+        if len(cat_stats):
+            row = cat_stats.iloc[0]
+            category_panel = (
+                f"The source category <strong>{html.escape(str(row['category']))}</strong> contains "
+                f"<strong>{int(row['wants'])}</strong> different AI-discovered wants across "
+                f"<strong>{int(row['records']):,}</strong> mapped records. A category pivot would keep "
+                "that as one bucket."
+            )
+    if {"assigned_want_id", "category"}.issubset(full_signal.columns):
+        span_stats = (
+            full_signal.assign(category=full_signal["category"].fillna("(missing)").astype(str))
+            .groupby("assigned_want_id", as_index=False)
+            .agg(
+                records=("source_row", "count"),
+                categories=("category", "nunique"),
+                managers=("manager", "nunique") if "manager" in full_signal.columns else ("source_row", "count"),
+            )
+            .sort_values(["categories", "records"], ascending=False)
+        )
+        if len(span_stats):
+            row = span_stats.iloc[0]
+            title = title_lookup.get(int(row["assigned_want_id"]), str(row["assigned_want_id"]))
+            intent_span_panel = (
+                f"<strong>{html.escape(str(title))}</strong> appears across "
+                f"<strong>{int(row['categories'])}</strong> source categories and "
+                f"<strong>{int(row['managers'])}</strong> managers. The model re-joins what a spreadsheet "
+                "would split apart."
+            )
+
+evidence_panel = "The AI extraction did not only classify rows; it pulled out missing proof/evidence requirements from the text."
+action_panel = "The AI extraction turns repeated cases into suggested support and product actions."
+if extractions is not None and not extractions.empty:
+    if "evidence_missing" in extractions.columns:
+        evidence_panel = (
+            "Most common missing evidence found in free-text notes: "
+            f"<strong>{html.escape(_top_list_items(extractions['evidence_missing'], 4))}</strong>."
+        )
+    support_count = extractions["support_next_step"].dropna().astype(str).str.strip().replace("", pd.NA).dropna().shape[0] if "support_next_step" in extractions.columns else 0
+    product_count = extractions["product_opportunity"].dropna().astype(str).str.strip().replace("", pd.NA).dropna().shape[0] if "product_opportunity" in extractions.columns else 0
+    action_panel = (
+        f"The model produced support next-step recommendations for <strong>{support_count:,}</strong> records and "
+        f"product/process opportunities for <strong>{product_count:,}</strong> records. That is a draft "
+        "operating backlog, not a row count."
+    )
+
+m1, m2, m3, m4 = st.columns(4)
+with m1:
+    _panel("Category hides intent", category_panel)
+with m2:
+    _panel("Intent crosses buckets", intent_span_panel)
+with m3:
+    _panel("Evidence gaps are explicit", evidence_panel)
+with m4:
+    _panel("Actions are synthesized", action_panel)
+
+if not ai_context.empty:
+    ai_rollup = (
+        ai_context.groupby("want_id", as_index=False)
+        .agg(
+            ai_read_examples=("source_row", "count"),
+            what_users_mean=("actual_user_want", _mode) if "actual_user_want" in ai_context.columns else ("_want_text", _mode),
+            support_playbook=("support_next_step", _mode),
+            product_or_process_fix=("product_opportunity", _mode),
+            missing_evidence=("evidence_missing", _top_list_items) if "evidence_missing" in ai_context.columns else ("source_row", lambda s: "-"),
+        )
+    )
+    volume_lookup = volume_source.copy()
+    if "assigned_want_id" in volume_lookup.columns:
+        volume_lookup["want_id"] = pd.to_numeric(volume_lookup["assigned_want_id"], errors="coerce")
+    volume_keep = [
+        c
+        for c in [
+            "want_id",
+            "want_display_title",
+            volume_col,
+            "avg_money_risk",
+            "avg_trust_risk",
+            "avg_urgency",
+            "theme",
+        ]
+        if c in volume_lookup.columns
+    ]
+    ai_rollup = ai_rollup.merge(volume_lookup[volume_keep], on="want_id", how="left")
+    ai_rollup["priority"] = (
+        pd.to_numeric(ai_rollup.get(volume_col, ai_rollup["ai_read_examples"]), errors="coerce").fillna(0)
+        * (
+            pd.to_numeric(ai_rollup.get("avg_money_risk", 1), errors="coerce").fillna(1)
+            + pd.to_numeric(ai_rollup.get("avg_trust_risk", 1), errors="coerce").fillna(1)
+            + pd.to_numeric(ai_rollup.get("avg_urgency", 1), errors="coerce").fillna(1)
+        )
+        / 3
+    )
+    display = ai_rollup.sort_values("priority", ascending=False).head(8).copy()
+    display["Scale"] = display.apply(
+        lambda r: (
+            f"{int(r.get(volume_col, 0)):,} mapped records / {int(r.get('ai_read_examples', 0)):,} AI-read examples"
+            if pd.notna(r.get(volume_col))
+            else f"{int(r.get('ai_read_examples', 0)):,} AI-read examples"
+        ),
+        axis=1,
+    )
+    display["What users mean"] = display["what_users_mean"].map(lambda v: _short(v, 110))
+    display["Evidence gap"] = display["missing_evidence"].map(lambda v: _short(v, 90))
+    display["Support playbook"] = display["support_playbook"].map(lambda v: _short(v, 125))
+    display["Product / process fix"] = display["product_or_process_fix"].map(lambda v: _short(v, 125))
+    display["Want"] = display["want_display_title"].fillna(display["want_id"].astype(str))
+    st.markdown("**AI-created operating backlog**")
+    st.dataframe(
+        display[["Want", "Scale", "What users mean", "Evidence gap", "Support playbook", "Product / process fix"]],
+        width="stretch",
+        hide_index=True,
+        height=340,
     )
 
 st.subheader("What management should remember")
