@@ -3,10 +3,10 @@
 Use this file as source material for NotebookLM to generate a simple management
 deck.
 
-The key framing: **this is not a chatbot for users**. This is an internal
-decision tool that reads existing support tickets and shows management what
-users repeatedly want, where trust is breaking, and which operational changes
-would reduce repeated escalation.
+The key framing: **this is a different AI use case from user-facing chat**.
+This is an internal decision tool that reads existing support tickets and shows
+management what users repeatedly want, where trust is breaking, and which
+operational changes would reduce repeated escalation.
 
 ## One-Sentence Positioning
 
@@ -14,14 +14,13 @@ We are not replacing direct support conversations. We are using the support
 tickets we already have to understand the repeated user wants behind them, so
 management can make faster, better operational decisions.
 
-## What This Is Not
+## Scope Clarification
 
-- Not a user-facing chatbot.
-- Not an automatic reply system.
-- Not a plan to stop talking to users directly.
-- Not a replacement for support managers.
-- Not a black-box decision maker.
-- Not a paid API workflow.
+- It does not send messages to users.
+- It does not replace support managers.
+- It does not decide punishment, refunds, or enforcement.
+- It does not stop the team from talking to users directly.
+- It does not require a paid API workflow.
 
 ## What This Is
 
@@ -29,7 +28,7 @@ management can make faster, better operational decisions.
 - A way to turn messy support tickets into repeated user-want patterns.
 - A way to see which issues affect trust, money, urgency, safety, and support load.
 - A way to identify which playbooks, escalation lanes, and product fixes should come first.
-- A private local analysis workflow using RunPod + Ollama/Mistral, not a public chatbot.
+- A private local analysis workflow using RunPod + Ollama/Mistral.
 
 ## Why We Are Doing This
 
@@ -37,7 +36,7 @@ management can make faster, better operational decisions.
 - Individual tickets show one problem; this analysis shows the pattern behind thousands of problems.
 - Without this, decisions are based on anecdotes, loud cases, or manually reading spreadsheets.
 - With this, management can see repeated user wants, risk levels, and recommended operating changes.
-- The output is not "let AI answer users." The output is "show management what users keep asking for."
+- The output is "show management what users keep asking for."
 
 ## Proof Points To Use
 
@@ -72,7 +71,7 @@ support playbooks, better escalation lanes, and product/process fixes.
 
 **On-slide bullets:**
 
-- Internal decision dashboard, not a chatbot.
+- Internal decision dashboard.
 - Built from existing support tickets.
 - Goal: identify repeated user wants, risks, and operational fixes.
 
@@ -98,20 +97,20 @@ conversations are repeatedly about.
 Support teams already see many cases every day. The gap is not conversation.
 The gap is pattern recognition across thousands of conversations.
 
-### Slide 3 - What This Is And Is Not
+### Slide 3 - Scope: Different AI Use Case
 
-**Title:** This is not a user-facing AI assistant
+**Title:** This is internal support intelligence
 
 **Two-column slide:**
 
-**Not this**
+**User-facing AI/chat use case**
 
-- Not answering users automatically.
-- Not replacing support staff.
-- Not deciding punishment or refunds.
-- Not sending messages to customers.
+- Talks directly with users.
+- Helps answer common questions.
+- Needs careful tone, policy, and service ownership.
+- Useful in some contexts, but not the focus here.
 
-**This**
+**This project**
 
 - Reads historical tickets.
 - Groups repeated user wants.
@@ -120,9 +119,9 @@ The gap is pattern recognition across thousands of conversations.
 
 **Speaker note:**
 
-This distinction is important. The previous chatbot-style idea sounded like
-"AI will talk to users." This project is different: it helps management listen
-to what users have already been saying.
+This distinction is important because management may hear "AI" and assume
+user-facing chat. This project is a different use case: it helps management
+listen to what users have already been saying across thousands of tickets.
 
 ### Slide 4 - Data Foundation
 
@@ -228,13 +227,12 @@ priority because they affect trust, money, or platform fairness.
 
 **Speaker note:**
 
-The deliverable is not a chatbot. The deliverable is a better operating map:
-where to standardize replies, where to escalate, and where product/process is
-creating repeated support demand.
+The deliverable is a better operating map: where to standardize replies, where
+to escalate, and where product/process is creating repeated support demand.
 
-### Slide 10 - Why This Is Safer Than A Chatbot Proposal
+### Slide 10 - Human-In-The-Loop Design
 
-**Title:** This keeps humans in the loop
+**Title:** The tool supports judgment; it does not replace it
 
 **On-slide bullets:**
 
@@ -306,15 +304,16 @@ Ask NotebookLM or slide designer to create these:
 1. **Simple pipeline flow:** Raw tickets -> clean/score -> local AI read -> wants taxonomy -> full-corpus map -> dashboard.
 2. **Top wants bar chart:** show the top repeated wants by mapped ticket count.
 3. **Risk matrix:** volume on one axis, money/trust risk on another.
-4. **Not a chatbot comparison:** two columns, "not user-facing chatbot" vs "internal management intelligence."
+4. **AI use-case comparison:** two columns, "user-facing chat" vs "internal support intelligence."
 5. **Decision ask slide:** three workstreams as large cards.
 
-## Words To Avoid
+## Phrases To Use Carefully
 
-Avoid these phrases in the management deck:
+These phrases are not wrong in every context, but they can make management hear
+"user-facing automation" instead of "internal decision support":
 
 - "AI will answer users."
-- "Chatbot."
+- "Chatbot" as the first label for this project.
 - "Automated support replacement."
 - "We can stop talking to users."
 - "The model decides."
@@ -363,5 +362,5 @@ We do not hide uncertainty. We expose it.
 
 ## Suggested Closing Line
 
-This is not a chatbot project. It is a way to listen to thousands of existing
-support conversations at once and turn them into clear management decisions.
+This is a way to listen to thousands of existing support conversations at once
+and turn them into clear management decisions.
