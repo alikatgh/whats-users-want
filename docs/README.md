@@ -15,11 +15,12 @@ Read in this order before the presentation:
 9. [09-limitations.md](09-limitations.md) — what this analysis cannot tell you. Read this before someone asks during Q&A.
 10. [10-runpod-gpu-101.md](10-runpod-gpu-101.md) — what happens after renting a GPU: terminal access, downloads, costs, uploads, and when to stop the pod.
 11. [11-runpod-mistral-runbook.md](11-runpod-mistral-runbook.md) — exact RunPod/Mistral operating runbook, including smoke tests, failure recovery, output packaging, and volume cleanup.
+12. [12-management-slide-brief.md](12-management-slide-brief.md) — NotebookLM-ready slide text and positioning for management: simple, careful, and not framed as a chatbot.
 
 For deep "how does it work" engineering questions, the next folder over has it:
 
-12. [engineering/](engineering/) — meticulous, function-by-function deep dives, exact formulas, all prompts, all output schemas.
-13. [api/](api/) — auto-generated browsable HTML API docs from script docstrings. Open [api/index.html](api/index.html) in a browser.
+13. [engineering/](engineering/) — meticulous, function-by-function deep dives, exact formulas, all prompts, all output schemas.
+14. [api/](api/) — auto-generated browsable HTML API docs from script docstrings. Open [api/index.html](api/index.html) in a browser.
 
 ## Building the full styled site
 

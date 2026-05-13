@@ -188,6 +188,7 @@ nav:
       - Limitations: 09-limitations.md
       - RunPod GPU 101: 10-runpod-gpu-101.md
       - RunPod Mistral runbook: 11-runpod-mistral-runbook.md
+      - Management slide brief: 12-management-slide-brief.md
   - Engineering:
       - Index: engineering/README.md
       - 00 — Architecture: engineering/00-architecture.md
