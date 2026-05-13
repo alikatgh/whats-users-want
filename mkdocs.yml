@@ -1,5 +1,5 @@
 site_name: What Users Want
-site_description: Data-science pipeline that turns 6,728 messy support tickets into a structured taxonomy of user wants, using local Gemma 3:4B and zero paid APIs.
+site_description: Data-science pipeline that turns 6,728 messy support tickets into a structured taxonomy of user wants, using local Ollama models and zero paid APIs.
 
 docs_dir: docs
 site_dir: site
@@ -187,6 +187,7 @@ nav:
       - Running it: 08-running-it.md
       - Limitations: 09-limitations.md
       - RunPod GPU 101: 10-runpod-gpu-101.md
+      - RunPod Mistral runbook: 11-runpod-mistral-runbook.md
   - Engineering:
       - Index: engineering/README.md
       - 00 — Architecture: engineering/00-architecture.md
