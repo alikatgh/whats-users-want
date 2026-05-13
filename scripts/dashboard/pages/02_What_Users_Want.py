@@ -81,6 +81,7 @@ if run_dir is None:
 taxonomy = maybe_load_csv(run_dir, "user_wants_taxonomy.csv")
 assignments = maybe_load_csv(run_dir, "user_wants_assignments.csv")
 full_assignments = maybe_load_csv(run_dir, "user_wants_all_assignments.csv")
+full_summary = maybe_load_csv(run_dir, "user_wants_full_corpus_summary.csv")
 enriched = maybe_load_csv(run_dir, "enriched_tickets.csv")
 
 if taxonomy is None or assignments is None:
@@ -156,12 +157,44 @@ elif "want_label" in assignments.columns:
         assignments["want_label"]
     )
 
+
+def _prepare_full_assignments(full_df: pd.DataFrame | None) -> pd.DataFrame | None:
+    """Prepare the full-corpus projection table for the same filters/charts."""
+    if full_df is None:
+        return None
+
+    out = full_df.copy()
+    if "assigned_want_id" in out.columns and "want_title" not in out.columns:
+        out["want_title"] = out["assigned_want_id"].map(title_lookup)
+    if "want_title" not in out.columns and "want_label" in out.columns:
+        label_to_title = dict(zip(taxonomy["want_label"], taxonomy["want_title"]))
+        out["want_title"] = out["want_label"].map(label_to_title).fillna(out["want_label"])
+
+    rename_context = {
+        "manager": "Manager",
+        "status_en": "Status",
+        "category": "Category",
+        "uid": "UID",
+        "date_raw": "Date",
+        "primary_desire": "Rule-based desire",
+        "context_depth_band": "Context depth",
+        "context_depth_score": "Context score",
+        "question_flat": "Question flat",
+    }
+    for old, new in rename_context.items():
+        if old in out.columns and new not in out.columns:
+            out[new] = out[old]
+    return out
+
+
+full_assignments = _prepare_full_assignments(full_assignments)
+
 n_clusters = (taxonomy["want_id"] != -1).sum() if "want_id" in taxonomy.columns else len(taxonomy)
 if full_assignments is not None:
     st.caption(
         f"This run has **{n_clusters}** discovered wants from "
         f"**{len(assignments):,}** tickets read by the local AI, then projected across "
-        f"**{len(full_assignments):,}** cleaned tickets."
+        f"**{len(full_assignments):,}** analysis-ready support records."
     )
     st.download_button(
         "Download full-corpus want assignments",
@@ -176,10 +209,33 @@ else:
         f"**{len(assignments):,}** tickets read by the local AI."
     )
 
-title_col = "want_title" if "want_title" in assignments.columns else "want_label"
+with st.sidebar:
+    if full_assignments is not None:
+        analysis_scope = st.radio(
+            "Coverage",
+            [
+                f"All mapped support records ({len(full_assignments):,})",
+                f"Mistral-read evidence only ({len(assignments):,})",
+            ],
+            index=0,
+            help=(
+                "Use all mapped support records for management totals. "
+                "Use the Mistral-read layer when you need extracted emotions, jobs, and risk scores."
+            ),
+        )
+    else:
+        analysis_scope = f"Mistral-read evidence only ({len(assignments):,})"
+
+using_full_corpus = full_assignments is not None and analysis_scope.startswith("All mapped")
+chart_assignments = full_assignments if using_full_corpus else assignments
+title_col = "want_title" if "want_title" in chart_assignments.columns else "want_label"
 
 if len(taxonomy):
-    sorted_taxonomy = taxonomy.sort_values("size", ascending=False) if "size" in taxonomy.columns else taxonomy
+    if using_full_corpus and full_summary is not None and len(full_summary):
+        summary_for_metrics = full_summary.copy()
+        sorted_taxonomy = summary_for_metrics.sort_values("estimated_tickets", ascending=False)
+    else:
+        sorted_taxonomy = taxonomy.sort_values("size", ascending=False) if "size" in taxonomy.columns else taxonomy
     high_money = (
         taxonomy.sort_values("avg_money_risk", ascending=False).iloc[0]
         if "avg_money_risk" in taxonomy.columns
@@ -193,7 +249,8 @@ if len(taxonomy):
     c1, c2, c3 = st.columns(3)
     with c1:
         top = sorted_taxonomy.iloc[0]
-        st.metric("Largest want", int(top.get("size", 0)))
+        size_col = "estimated_tickets" if using_full_corpus and "estimated_tickets" in top else "size"
+        st.metric("Largest want", int(top.get(size_col, 0)))
         st.caption(str(top.get("want_title") or top.get("want_label") or ""))
     with c2:
         if high_money is not None:
@@ -209,41 +266,41 @@ if len(taxonomy):
 with st.sidebar:
     st.header("Filters")
     search_query = st.text_input("Search tickets and extracted wants", placeholder="unban, diamonds, voice room...")
-    if "job_to_be_done" in assignments.columns:
-        jobs = sorted(assignments["job_to_be_done"].dropna().astype(str).unique())
+    if "job_to_be_done" in chart_assignments.columns:
+        jobs = sorted(chart_assignments["job_to_be_done"].dropna().astype(str).unique())
         sel_jobs = st.multiselect("Job to be done", jobs, default=jobs)
     else:
         sel_jobs = None
-    if "user_emotion" in assignments.columns:
-        emotions = sorted(assignments["user_emotion"].dropna().astype(str).unique())
+    if "user_emotion" in chart_assignments.columns:
+        emotions = sorted(chart_assignments["user_emotion"].dropna().astype(str).unique())
         sel_emotions = st.multiselect("User emotion", emotions, default=emotions)
     else:
         sel_emotions = None
-    if "money_risk_level" in assignments.columns:
+    if "money_risk_level" in chart_assignments.columns:
         money_min, money_max = st.slider("Money risk (1 low — 5 high)", 1, 5, (1, 5))
     else:
         money_min, money_max = 1, 5
-    if "trust_risk_level" in assignments.columns:
+    if "trust_risk_level" in chart_assignments.columns:
         trust_min, trust_max = st.slider("Trust risk (1 low — 5 high)", 1, 5, (1, 5))
     else:
         trust_min, trust_max = 1, 5
-    if _SHOW_MANAGERS and "Manager" in assignments.columns:
-        managers = sorted(assignments["Manager"].fillna("(unknown)").astype(str).unique())
+    if _SHOW_MANAGERS and "Manager" in chart_assignments.columns:
+        managers = sorted(chart_assignments["Manager"].fillna("(unknown)").astype(str).unique())
         sel_managers = st.multiselect("Manager", managers, default=managers)
     else:
         sel_managers = None
-    if "Status" in assignments.columns:
-        statuses = sorted(assignments["Status"].fillna("(unknown)").astype(str).unique())
+    if "Status" in chart_assignments.columns:
+        statuses = sorted(chart_assignments["Status"].fillna("(unknown)").astype(str).unique())
         sel_statuses = st.multiselect("Status", statuses, default=statuses)
     else:
         sel_statuses = None
-    if "Category" in assignments.columns:
-        categories = sorted(assignments["Category"].fillna("(unknown)").astype(str).unique())
+    if "Category" in chart_assignments.columns:
+        categories = sorted(chart_assignments["Category"].fillna("(unknown)").astype(str).unique())
         sel_categories = st.multiselect("Category", categories, default=categories)
     else:
         sel_categories = None
 
-filtered = assignments.copy()
+filtered = chart_assignments.copy()
 if search_query:
     search_cols = [
         c
@@ -277,15 +334,26 @@ if sel_categories is not None and "Category" in filtered.columns:
     filtered = filtered[filtered["Category"].fillna("(unknown)").astype(str).isin(sel_categories)]
 
 metric_cols = st.columns(4)
-metric_cols[0].metric("Tickets matching filters", f"{len(filtered):,}", delta=f"of {len(assignments):,} total")
+scope_label = "mapped records" if using_full_corpus else "AI-read tickets"
+metric_cols[0].metric(
+    "Records matching filters" if using_full_corpus else "Tickets matching filters",
+    f"{len(filtered):,}",
+    delta=f"of {len(chart_assignments):,} {scope_label}",
+)
 visible_wants = filtered[title_col].nunique() if title_col in filtered.columns else 0
 metric_cols[1].metric("Visible wants", f"{visible_wants:,}")
-if "money_risk_level" in filtered.columns and len(filtered):
+if using_full_corpus and "confidence_band" in filtered.columns and len(filtered):
+    low_conf_share = (filtered["confidence_band"].astype(str) == "low").mean() * 100
+    metric_cols[2].metric("Low-confidence mappings", f"{low_conf_share:.1f}%")
+elif "money_risk_level" in filtered.columns and len(filtered):
     high_money_share = (pd.to_numeric(filtered["money_risk_level"], errors="coerce") >= 4).mean() * 100
     metric_cols[2].metric("High money risk", f"{high_money_share:.1f}%")
 else:
     metric_cols[2].metric("High money risk", "—")
-if "trust_risk_level" in filtered.columns and len(filtered):
+if using_full_corpus and "needs_llm_review" in filtered.columns and len(filtered):
+    review_share = filtered["needs_llm_review"].fillna(False).astype(bool).mean() * 100
+    metric_cols[3].metric("Needs review", f"{review_share:.1f}%")
+elif "trust_risk_level" in filtered.columns and len(filtered):
     high_trust_share = (pd.to_numeric(filtered["trust_risk_level"], errors="coerce") >= 4).mean() * 100
     metric_cols[3].metric("High trust risk", f"{high_trust_share:.1f}%")
 else:
@@ -307,27 +375,47 @@ if len(counts):
 # ---- Taxonomy table ------------------------------------------------------
 
 st.subheader("Per-want summary")
-rename_map = {
-    "want_title": "Want",
-    "want_summary": "What this cluster is about",
-    "size": "Tickets",
-    "share": "Share of analyzed tickets",
-    "top_jobs": "Top jobs to be done",
-    "top_emotions": "Most common emotions",
-    "avg_money_risk": "Avg money risk (1-5)",
-    "avg_trust_risk": "Avg trust risk (1-5)",
-    "avg_urgency": "Avg urgency (1-5)",
-    "high_money_risk_share": "Share with high money risk",
-    "high_trust_risk_share": "Share with high trust risk",
-    "example_1": "Example ticket",
-    "next_step_1": "Suggested next step",
-    "want_label": "Cluster ID",
-}
-cols_to_show = [c for c in rename_map.keys() if c in taxonomy.columns]
-display_taxonomy = taxonomy[cols_to_show].copy()
-for col in ["share", "high_money_risk_share", "high_trust_risk_share"]:
-    if col in display_taxonomy.columns:
-        display_taxonomy[col] = (display_taxonomy[col] * 100).round(1).astype(str) + "%"
+if using_full_corpus and full_summary is not None:
+    summary_source = full_summary.copy()
+    rename_map = {
+        "want_title": "Want",
+        "estimated_tickets": "Mapped records",
+        "estimated_share": "Share of all records",
+        "llm_confirmed_tickets": "Mistral-read examples",
+        "projected_tickets": "Projected records",
+        "avg_assignment_confidence": "Avg mapping confidence",
+        "low_confidence_tickets": "Low-confidence mappings",
+        "review_queue_tickets": "Review queue",
+        "want_label": "Cluster ID",
+    }
+    cols_to_show = [c for c in rename_map.keys() if c in summary_source.columns]
+    display_taxonomy = summary_source[cols_to_show].copy()
+    if "estimated_share" in display_taxonomy.columns:
+        display_taxonomy["estimated_share"] = (display_taxonomy["estimated_share"] * 100).round(1).astype(str) + "%"
+    if "avg_assignment_confidence" in display_taxonomy.columns:
+        display_taxonomy["avg_assignment_confidence"] = display_taxonomy["avg_assignment_confidence"].round(3)
+else:
+    rename_map = {
+        "want_title": "Want",
+        "want_summary": "What this cluster is about",
+        "size": "Tickets",
+        "share": "Share of analyzed tickets",
+        "top_jobs": "Top jobs to be done",
+        "top_emotions": "Most common emotions",
+        "avg_money_risk": "Avg money risk (1-5)",
+        "avg_trust_risk": "Avg trust risk (1-5)",
+        "avg_urgency": "Avg urgency (1-5)",
+        "high_money_risk_share": "Share with high money risk",
+        "high_trust_risk_share": "Share with high trust risk",
+        "example_1": "Example ticket",
+        "next_step_1": "Suggested next step",
+        "want_label": "Cluster ID",
+    }
+    cols_to_show = [c for c in rename_map.keys() if c in taxonomy.columns]
+    display_taxonomy = taxonomy[cols_to_show].copy()
+    for col in ["share", "high_money_risk_share", "high_trust_risk_share"]:
+        if col in display_taxonomy.columns:
+            display_taxonomy[col] = (display_taxonomy[col] * 100).round(1).astype(str) + "%"
 display_taxonomy = display_taxonomy.rename(columns=rename_map)
 st.dataframe(display_taxonomy, use_container_width=True, hide_index=True, height=380)
 
