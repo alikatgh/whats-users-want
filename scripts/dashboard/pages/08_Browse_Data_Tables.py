@@ -117,14 +117,20 @@ st.caption(f"{len(csvs)} data tables available in this run.")
 TABLE_HINTS = {
     "user_wants_taxonomy.csv": "Start here: one row per discovered user want.",
     "user_wants_assignments.csv": "One row per AI-read ticket, assigned to a discovered want.",
+    "user_wants_all_assignments.csv": "One row per analysis-ready support record, mapped to a discovered want.",
+    "user_wants_full_corpus_summary.csv": "Full-corpus size/share per discovered want.",
+    "user_wants_review_queue.csv": "Rows whose projected want mapping deserves human review.",
     "ollama_extractions.csv": "Raw structured answers from the local/Ollama model.",
     "llm_extractions.csv": "Canonical AI extraction table for this run.",
     "enriched_tickets.csv": "The cleaned full ticket table before rich AI extraction.",
-    "desire_summary.csv": "Rule-based desire summary from the full cleaned dataset.",
+    "desire_summary.csv": "Rule-based desire summary from the full analysis-ready dataset.",
     "opportunity_backlog.csv": "Prioritized product/support opportunities, when generated.",
     "refined_opportunity_backlog.csv": "Refined prioritized opportunities, when generated.",
 }
 priority = [
+    "user_wants_full_corpus_summary.csv",
+    "user_wants_all_assignments.csv",
+    "user_wants_review_queue.csv",
     "user_wants_taxonomy.csv",
     "user_wants_assignments.csv",
     "ollama_extractions.csv",
@@ -176,7 +182,7 @@ with st.expander("Column types and stats", expanded=False):
             "Distinct values": [df[c].nunique() for c in df.columns],
         }
     )
-    st.dataframe(info, use_container_width=True, hide_index=True)
+    st.dataframe(info, width="stretch", hide_index=True)
 
 # ---- Filtering ----------------------------------------------------------
 
@@ -218,7 +224,7 @@ if sort_col != "(default)":
 f = f.head(max_rows)
 
 st.caption(f"Showing {len(f):,} of {len(df):,} rows")
-st.dataframe(f, use_container_width=True, hide_index=True, height=480)
+st.dataframe(f, width="stretch", hide_index=True, height=480)
 
 # ---- Auto-charts --------------------------------------------------------
 
@@ -250,7 +256,7 @@ if tabs_to_show:
             col = st.selectbox("Column", numeric_cols, key="num_dist")
             fig = px.histogram(df, x=col, nbins=40, height=320)
             fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.write(df[col].describe().to_frame().T)
         idx += 1
 
@@ -285,7 +291,7 @@ if tabs_to_show:
                 render_mode="webgl",
             )
             fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         idx += 1
 
     if "Number across categories" in tabs_to_show:
@@ -294,7 +300,7 @@ if tabs_to_show:
             num = st.selectbox("Number", numeric_cols, key="ncat_num")
             fig = px.box(df, x=cat, y=num, points="outliers", height=480)
             fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 st.download_button(
     "Download filtered view as CSV",

@@ -183,7 +183,7 @@ if "tickets" in f.columns and len(f):
             labels={"tickets": "Tickets per customer"},
         )
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), yaxis_title="Customers")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 if {"persona_label", "unresolved_share"} <= set(f.columns):
     with next_col():
@@ -195,7 +195,7 @@ if {"persona_label", "unresolved_share"} <= set(f.columns):
         )
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
         fig.update_xaxes(tickangle=-30)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 if {"persona_label", "avg_context_score"} <= set(f.columns):
     with next_col():
@@ -207,7 +207,7 @@ if {"persona_label", "avg_context_score"} <= set(f.columns):
         )
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
         fig.update_xaxes(tickangle=-30)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # ---- Top repeat users ---------------------------------------------------
 
@@ -230,4 +230,4 @@ keep = [c for c in rename_map.keys() if c in f.columns]
 disp = f.sort_values("tickets", ascending=False)[keep].head(200).copy()
 if "unresolved_share" in disp.columns:
     disp["unresolved_share"] = (disp["unresolved_share"] * 100).round(1).astype(str) + "%"
-st.dataframe(disp.rename(columns=rename_map), use_container_width=True, hide_index=True, height=520)
+st.dataframe(disp.rename(columns=rename_map), width="stretch", hide_index=True, height=520)

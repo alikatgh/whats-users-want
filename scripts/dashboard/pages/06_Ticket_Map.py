@@ -211,7 +211,7 @@ fig.update_layout(
     xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, title=""),
     yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, title=""),
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 st.caption(
     "How to read this: each dot is one ticket. Close-together dots are tickets about "
     "similar things. The X/Y axis numbers themselves are not meaningful — they are just "
@@ -239,7 +239,7 @@ if clusters is not None:
         disp["share"] = (disp["share"] * 100).round(1).astype(str) + "%"
     if "unresolved_share" in disp.columns:
         disp["unresolved_share"] = (disp["unresolved_share"] * 100).round(1).astype(str) + "%"
-    st.dataframe(disp.rename(columns=rename_map), use_container_width=True, hide_index=True, height=420)
+    st.dataframe(disp.rename(columns=rename_map), width="stretch", hide_index=True, height=420)
 
 # ---- Link to original Plotly HTML --------------------------------------
 

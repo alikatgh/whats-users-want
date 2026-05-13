@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage 7 - project discovered user wants onto the full cleaned corpus.
+"""Stage 7 - project discovered user wants onto the full analysis-ready corpus.
 
 This script is the "smart rest" after the expensive local-LLM read:
 

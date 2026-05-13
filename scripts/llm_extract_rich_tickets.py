@@ -106,7 +106,7 @@ SCHEMA: dict[str, Any] = {
     "confidence": "number 0-1",
 }
 
-SYSTEM_PROMPT = """You are analyzing messy support tickets from IMO/BIGO-style support operations.
+SYSTEM_PROMPT = """You are analyzing real support tickets from IMO/BIGO-style support operations.
 Extract what the user actually wants, not only the literal category.
 Preserve uncertainty. Do not invent facts. If evidence is missing, say what is missing.
 Treat screenshots/URLs/timestamps/ban reasons/IDs as evidence, not noise.
@@ -373,11 +373,20 @@ def compact(text: str, max_chars: int) -> str:
     return text if len(text) <= max_chars else text[: max_chars - 80].rstrip() + "\n...[TRUNCATED FOR LLM INPUT]"
 
 
-def load_candidates(run_dir: Path, limit: int, min_context_score: float, strategy: str, max_chars: int) -> pd.DataFrame:
+def load_candidates(
+    run_dir: Path,
+    limit: int,
+    min_context_score: float,
+    strategy: str,
+    max_chars: int,
+    min_text_chars: int = 40,
+) -> pd.DataFrame:
     """Pick rich-evidence tickets for LLM extraction.
 
     Filters to tickets with ``context_depth_score >= min_context_score`` and
-    ``len(question_flat) >= 40`` to ensure the model has substance to work with.
+    ``len(question_flat) >= min_text_chars`` to ensure the model has substance
+    to work with. For a full-corpus AI census, set ``--min-context-score 0``
+    and ``--min-text-chars 1``.
     Joins outlier subtopic and BERTopic labels into ``issue_label`` if available.
 
     Args:
@@ -386,6 +395,7 @@ def load_candidates(run_dir: Path, limit: int, min_context_score: float, strateg
         min_context_score: Minimum ``context_depth_score`` to qualify.
         strategy: One of ``highest_context``, ``risk_balanced``, ``issue_balanced``.
         max_chars: Truncation limit for ``llm_input_text`` (the prompt body).
+        min_text_chars: Minimum flattened question length to qualify.
 
     Returns:
         DataFrame with one row per candidate, including ``llm_input_text``
@@ -423,7 +433,14 @@ def load_candidates(run_dir: Path, limit: int, min_context_score: float, strateg
     df["source_row"] = df["source_row"].astype(str)
     df["question_flat"] = df["question_flat"].fillna("").astype(str)
     df["question"] = df["question"].fillna(df["question_flat"]).astype(str)
+    df["context_depth_score"] = pd.to_numeric(df.get("context_depth_score", 0), errors="coerce").fillna(0)
+    df["char_count"] = pd.to_numeric(
+        df.get("char_count", df["question_flat"].str.len()),
+        errors="coerce",
+    ).fillna(df["question_flat"].str.len())
     for col in ["manager", "date_raw", "category", "question_kind", "status_en", "primary_desire"]:
+        if col not in df.columns:
+            df[col] = ""
         df[col] = df[col].fillna("").astype(str)
 
     issue_label = None
@@ -438,7 +455,10 @@ def load_candidates(run_dir: Path, limit: int, min_context_score: float, strateg
         df = df.merge(bert.rename(columns={"Name": "bertopic_label"}), on="source_row", how="left")
     df["issue_label"] = df.get("outlier_subtopic_label", pd.Series(index=df.index, dtype=str)).fillna(df.get("bertopic_label", pd.Series(index=df.index, dtype=str))).fillna("")
 
-    rich = df[df["context_depth_score"].ge(min_context_score) & df["question_flat"].str.len().ge(40)].copy()
+    rich = df[
+        df["context_depth_score"].ge(min_context_score)
+        & df["question_flat"].str.len().ge(min_text_chars)
+    ].copy()
     if strategy == "highest_context":
         selected = rich.sort_values(["context_depth_score", "char_count"], ascending=False).head(limit)
     elif strategy == "risk_balanced":
@@ -447,6 +467,8 @@ def load_candidates(run_dir: Path, limit: int, min_context_score: float, strateg
             if col not in rich.columns:
                 rich[col] = False
             rich[col] = rich[col].astype(str).str.lower().isin(["true", "1"])
+        if "is_unresolved" not in rich.columns:
+            rich["is_unresolved"] = False
         rich["risk_score"] = rich[risk_cols].sum(axis=1) + rich["is_unresolved"].astype(str).str.lower().isin(["true", "1"]).astype(int)
         selected = rich.sort_values(["risk_score", "context_depth_score"], ascending=False).head(limit)
     else:
@@ -1957,6 +1979,7 @@ def run(args: argparse.Namespace) -> None:
         min_context_score=args.min_context_score,
         strategy=args.strategy,
         max_chars=args.max_chars,
+        min_text_chars=args.min_text_chars,
     )
     write_static_assets(run_dir, candidates)
     dry_run = args.dry_run
@@ -2052,6 +2075,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--outputs-dir", default="outputs")
     parser.add_argument("--limit", type=int, default=250)
     parser.add_argument("--min-context-score", type=float, default=24.0)
+    parser.add_argument(
+        "--min-text-chars",
+        type=int,
+        default=40,
+        help="Minimum flattened ticket text length. Use 1 with --min-context-score 0 for a full-corpus AI census.",
+    )
     parser.add_argument("--strategy", choices=["highest_context", "risk_balanced", "issue_balanced"], default="risk_balanced")
     parser.add_argument("--backend", choices=["rules", "ollama", "ollama_hybrid", "openai"], default="rules")
     parser.add_argument("--model", default=os.environ.get("LOCAL_LLM_MODEL") or os.environ.get("OPENAI_MODEL") or "mistral-small3.2:24b")

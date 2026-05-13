@@ -81,6 +81,7 @@ if run_dir is None:
 taxonomy = maybe_load_csv(run_dir, "user_wants_taxonomy.csv")
 assignments = maybe_load_csv(run_dir, "user_wants_assignments.csv")
 full_assignments = maybe_load_csv(run_dir, "user_wants_all_assignments.csv")
+full_summary = maybe_load_csv(run_dir, "user_wants_full_corpus_summary.csv")
 enriched = maybe_load_csv(run_dir, "enriched_tickets.csv")
 run_meta = load_json(str(run_dir), "run_metadata.json") or {}
 projection_meta = load_json(str(run_dir), "user_wants_projection_metadata.json") or {}
@@ -93,22 +94,56 @@ if taxonomy is None or taxonomy.empty:
 human_labels = load_human_labels(run_dir)
 taxonomy = attach_friendly_titles(taxonomy, human_labels)
 taxonomy["theme"] = taxonomy.apply(_theme, axis=1)
+volume_source = taxonomy.copy()
+volume_col = "size"
+share_col = "share"
+if full_summary is not None and not full_summary.empty and "assigned_want_id" in full_summary.columns:
+    title_field = "want_display_title" if "want_display_title" in taxonomy.columns else "want_title"
+    title_lookup = dict(zip(taxonomy["want_id"], taxonomy[title_field]))
+    meta_cols = [
+        "want_id",
+        "theme",
+        "avg_money_risk",
+        "avg_trust_risk",
+        "avg_urgency",
+        "top_jobs",
+        "top_emotions",
+    ]
+    meta_cols = [c for c in meta_cols if c in taxonomy.columns]
+    volume_source = full_summary.copy()
+    volume_source["want_display_title"] = volume_source["assigned_want_id"].map(title_lookup).fillna(
+        volume_source.get("want_title", volume_source.get("want_label", ""))
+    )
+    volume_source = volume_source.merge(
+        taxonomy[meta_cols].rename(columns={"want_id": "assigned_want_id"}),
+        on="assigned_want_id",
+        how="left",
+        suffixes=("", "_taxonomy"),
+    )
+    volume_col = "estimated_tickets"
+    share_col = "estimated_share"
+if "theme" in volume_source.columns:
+    volume_source["theme"] = volume_source["theme"].fillna("Other operational friction")
 
 rows_in_csv = safe_int(run_meta.get("rows_in_csv"), 0)
 clean_rows = safe_int(run_meta.get("rows_enriched"), len(enriched) if enriched is not None else 0)
 ai_rows = len(assignments) if assignments is not None else safe_int(extraction_info.get("rows"), 0)
 full_rows = len(full_assignments) if full_assignments is not None else 0
 wants = int((taxonomy["want_id"] != -1).sum()) if "want_id" in taxonomy.columns else len(taxonomy)
-top3_share = float(taxonomy.sort_values("size", ascending=False).head(3)["share"].sum()) if "share" in taxonomy.columns else 0.0
+top3_share = (
+    float(volume_source.sort_values(volume_col, ascending=False).head(3)[share_col].sum())
+    if share_col in volume_source.columns and volume_col in volume_source.columns
+    else 0.0
+)
 
-top = taxonomy.sort_values("size", ascending=False).iloc[0]
+top = volume_source.sort_values(volume_col, ascending=False).iloc[0]
 money_top = taxonomy.sort_values("avg_money_risk", ascending=False).iloc[0] if "avg_money_risk" in taxonomy.columns else top
 trust_top = taxonomy.sort_values("avg_trust_risk", ascending=False).iloc[0] if "avg_trust_risk" in taxonomy.columns else top
 
 st.subheader("The one-slide answer")
 k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric("Export rows", f"{rows_in_csv:,}" if rows_in_csv else "-")
-k2.metric("Clean tickets", f"{clean_rows:,}" if clean_rows else "-")
+k2.metric("Analysis-ready records", f"{clean_rows:,}" if clean_rows else "-")
 k3.metric("AI-read sample", f"{ai_rows:,}")
 if full_rows:
     k4.metric("Full corpus mapped", f"{full_rows:,}")
@@ -132,27 +167,28 @@ col1, col2, col3 = st.columns(3)
 with col1:
     _panel(
         "Largest repeated want",
-        f"<strong>{html.escape(str(top.get('want_title') or top.get('want_label')))}</strong><br>"
-        f"{int(top.get('size', 0))} tickets in the AI-read sample, {_format_percent(top.get('share'))} of analyzed wants.",
+        f"<strong>{html.escape(str(top.get('want_display_title') or top.get('want_title') or top.get('want_label')))}</strong><br>"
+        f"{int(top.get(volume_col, 0))} {'mapped support records' if full_rows else 'tickets in the AI-read sample'}, "
+        f"{_format_percent(top.get(share_col))} of {'all mapped records' if full_rows else 'analyzed wants'}.",
     )
 with col2:
     _panel(
         "Highest money risk",
-        f"<strong>{html.escape(str(money_top.get('want_title') or money_top.get('want_label')))}</strong><br>"
+        f"<strong>{html.escape(str(money_top.get('want_display_title') or money_top.get('want_title') or money_top.get('want_label')))}</strong><br>"
         f"Average money risk {float(money_top.get('avg_money_risk', 0)):.2f}/5.",
     )
 with col3:
     _panel(
         "Highest trust risk",
-        f"<strong>{html.escape(str(trust_top.get('want_title') or trust_top.get('want_label')))}</strong><br>"
+        f"<strong>{html.escape(str(trust_top.get('want_display_title') or trust_top.get('want_title') or trust_top.get('want_label')))}</strong><br>"
         f"Average trust risk {float(trust_top.get('avg_trust_risk', 0)):.2f}/5.",
     )
 
 st.subheader("What management should remember")
 theme_df = (
-    taxonomy.groupby("theme", as_index=False)
+    volume_source.groupby("theme", as_index=False)
     .agg(
-        tickets=("size", "sum"),
+        tickets=(volume_col, "sum"),
         avg_money_risk=("avg_money_risk", "mean"),
         avg_trust_risk=("avg_trust_risk", "mean"),
         avg_urgency=("avg_urgency", "mean"),
@@ -164,7 +200,7 @@ theme_df["share"] = theme_df["tickets"] / theme_total
 
 readout = theme_df.copy()
 readout["Signal"] = readout.apply(
-    lambda r: f"{int(r['tickets'])} tickets, {r['share'] * 100:.1f}% of AI-read taxonomy",
+    lambda r: f"{int(r['tickets'])} {'mapped records' if full_rows else 'tickets'}, {r['share'] * 100:.1f}% of {'full corpus' if full_rows else 'AI-read taxonomy'}",
     axis=1,
 )
 readout["Why it matters"] = readout["theme"].map(
@@ -190,36 +226,44 @@ readout["Recommended management move"] = readout["theme"].map(
 show = readout[["theme", "Signal", "Why it matters", "Recommended management move"]].rename(
     columns={"theme": "Business theme"}
 )
-st.dataframe(show, use_container_width=True, hide_index=True, height=290)
+st.dataframe(show, width="stretch", hide_index=True, height=290)
 
 st.subheader("Evidence shape")
 chart_col, risk_col = st.columns([1.15, 1])
 with chart_col:
-    top_wants = taxonomy.sort_values("size", ascending=False).head(10).copy()
-    top_wants["Share"] = top_wants["share"] * 100 if "share" in top_wants.columns else 0
+    top_wants = volume_source.sort_values(volume_col, ascending=False).head(10).copy()
+    top_wants["Share"] = top_wants[share_col] * 100 if share_col in top_wants.columns else 0
+    y_col = "want_display_title" if "want_display_title" in top_wants.columns else "want_title"
     fig = px.bar(
-        top_wants.sort_values("size", ascending=True),
-        x="size",
-        y="want_title",
+        top_wants.sort_values(volume_col, ascending=True),
+        x=volume_col,
+        y=y_col,
         color="theme",
         orientation="h",
-        labels={"size": "Tickets", "want_title": "User want", "theme": "Theme"},
+        labels={volume_col: "Mapped support records" if full_rows else "Tickets", y_col: "User want", "theme": "Theme"},
         color_discrete_sequence=["#1f5eff", "#007f7a", "#a35b00", "#475569", "#7c3aed", "#64748b"],
         height=430,
     )
     fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with risk_col:
     risk = taxonomy.copy()
-    risk["Ticket volume"] = risk["size"]
+    if full_summary is not None and "assigned_want_id" in full_summary.columns and "want_id" in risk.columns:
+        volumes = full_summary[["assigned_want_id", "estimated_tickets"]].rename(
+            columns={"assigned_want_id": "want_id", "estimated_tickets": "Ticket volume"}
+        )
+        risk = risk.merge(volumes, on="want_id", how="left")
+    if "Ticket volume" not in risk.columns:
+        risk["Ticket volume"] = risk["size"]
+    risk["Ticket volume"] = pd.to_numeric(risk["Ticket volume"], errors="coerce").fillna(1).clip(lower=1)
     fig = px.scatter(
         risk,
         x="avg_money_risk",
         y="avg_trust_risk",
         size="Ticket volume",
         color="theme",
-        hover_name="want_title",
+        hover_name="want_display_title" if "want_display_title" in risk.columns else "want_title",
         labels={
             "avg_money_risk": "Avg money risk",
             "avg_trust_risk": "Avg trust risk",
@@ -229,18 +273,18 @@ with risk_col:
         height=430,
     )
     fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", y=-0.2))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.subheader("How to present the caveat")
 if full_rows:
     st.markdown(
         f"""
         <div class="wwu-callout">
-          <strong>Method note:</strong> the base pipeline cleaned and clustered
-          {clean_rows:,} tickets from {rows_in_csv:,} source rows. The richer
-          Mistral/Ollama extraction deeply read {ai_rows:,} risk-balanced tickets,
+          <strong>Method note:</strong> the base pipeline processed and clustered
+          {clean_rows:,} analysis-ready support records from {rows_in_csv:,} source rows. The richer
+          Mistral/Ollama extraction deeply read {ai_rows:,} risk-balanced support records,
           discovered {wants} user wants, then the projection stage mapped
-          {full_rows:,} cleaned tickets onto those wants with confidence bands.
+          {full_rows:,} support records onto those wants with confidence bands.
           Rows marked low-confidence remain a targeted review queue, not an
           overclaimed model decision.
         </div>
@@ -251,9 +295,9 @@ else:
     st.markdown(
         f"""
         <div class="wwu-callout">
-          <strong>Method note:</strong> the base pipeline cleaned and clustered
-          {clean_rows:,} tickets from {rows_in_csv:,} source rows. The richer
-          Mistral/Ollama extraction read {ai_rows:,} risk-balanced tickets and
+          <strong>Method note:</strong> the base pipeline processed and clustered
+          {clean_rows:,} analysis-ready support records from {rows_in_csv:,} source rows. The richer
+          Mistral/Ollama extraction read {ai_rows:,} risk-balanced support records and
           produced the {wants} want clusters shown here. Treat this as a strong
           decision sample, not yet a full LLM census of every ticket.
         </div>

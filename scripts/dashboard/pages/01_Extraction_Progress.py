@@ -201,7 +201,7 @@ if csv_path.exists():
             df_flags["Reason"] = df_flags["Reason"].map(lambda s: flag_labels.get(s, s))
             fig = px.bar(df_flags, x="Tickets", y="Reason", orientation="h", height=240)
             fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), yaxis={"categoryorder": "total ascending"})
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     j1, j2 = st.columns(2)
     if "job_to_be_done" in df.columns:
@@ -243,7 +243,7 @@ if csv_path.exists():
             with rcol:
                 fig = px.histogram(df, x=col, nbins=5, height=200, title=label)
                 fig.update_layout(margin=dict(l=10, r=10, t=30, b=10), title_font_size=12, xaxis_title="", yaxis_title="Tickets")
-                rcol.plotly_chart(fig, use_container_width=True)
+                rcol.plotly_chart(fig, width="stretch")
 
 # ---- Latest extraction in detail ----------------------------------------
 
@@ -362,7 +362,7 @@ if recent:
         if "_status" in flat.columns:
             flat["_status"] = flat["_status"].map({"ok": "Valid", "bad_output": "Flagged", "error": "Failed"}).fillna(flat["_status"])
         rename_map = {c: show_cols[c] for c in keep}
-        st.dataframe(flat[keep].rename(columns=rename_map), use_container_width=True, hide_index=True, height=380)
+        st.dataframe(flat[keep].rename(columns=rename_map), width="stretch", hide_index=True, height=380)
 
 # ---- Log tail ------------------------------------------------------------
 

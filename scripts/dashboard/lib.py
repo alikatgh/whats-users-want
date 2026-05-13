@@ -664,37 +664,37 @@ def chart_picker(
             margin=dict(l=10, r=10, t=10, b=10),
             yaxis={"categoryorder": "total ascending"},
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif chart_type == "Vertical bars":
         fig = px.bar(work, x=label_col, y=value_col, height=h)
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
         fig.update_xaxes(tickangle=-30)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif chart_type == "Donut":
         fig = px.pie(work, names=label_col, values=value_col, hole=0.55, height=max(h, 460))
         fig.update_traces(textposition="outside", textinfo="label+percent")
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif chart_type == "Pie":
         fig = px.pie(work, names=label_col, values=value_col, height=max(h, 460))
         fig.update_traces(textposition="outside", textinfo="label+percent")
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif chart_type == "Treemap":
         fig = px.treemap(work, path=[label_col], values=value_col, height=max(h, 460))
         fig.update_traces(textinfo="label+value+percent root")
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif chart_type == "Funnel":
         fig = px.funnel(work, x=value_col, y=label_col, height=h)
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif chart_type == "Table":
         total = float(work[value_col].sum()) if len(work) else 0.0
         display = work.copy()
         if total > 0:
             display["Share"] = (display[value_col] / total * 100).round(1).astype(str) + "%"
-        st.dataframe(display, use_container_width=True, hide_index=True, height=h)
+        st.dataframe(display, width="stretch", hide_index=True, height=h)
 
 
 def manager_view_enabled() -> bool:
@@ -851,6 +851,21 @@ _FRIENDLY_STOP = {
     "the", "and", "for", "with", "from",
 }
 
+_DUPLICATE_SUFFIX_HINTS = [
+    "appeal",
+    "request",
+    "recovery",
+    "number",
+    "friends",
+    "blocked",
+    "groups",
+    "voice",
+    "dealer",
+    "diamonds",
+    "games",
+    "visibility",
+]
+
 
 def _top_job(top_jobs: str) -> str:
     """Return the dominant job string from `top_jobs` like 'recover_access:29, fix:2'.
@@ -995,12 +1010,19 @@ def attach_friendly_titles(
     top_jobs_col: str = "top_jobs",
     title_col: str = "want_title",
     summary_col: str = "want_summary",
+    display_col: str = "want_display_title",
 ) -> pd.DataFrame:
-    """Add `want_title` and `want_summary` columns using the human cache when present.
+    """Add friendly title, display title, and summary columns.
 
     Resolves each row's title in two steps:
     1. If a Gemma-generated title exists for this ``want_id``, use it.
     2. Otherwise fall back to :func:`friendly_want_title`.
+
+    ``display_col`` is the chart-safe version. Human-generated labels can
+    duplicate across separate clusters ("Regain access to my account" was a
+    real example), and grouping only by that title silently merges clusters.
+    When duplicates exist, the display title gets a short deterministic suffix
+    so counts stay honest.
 
     Args:
         df: Source DataFrame; must contain at least ``want_id_col`` and
@@ -1011,6 +1033,8 @@ def attach_friendly_titles(
         top_jobs_col: Column holding the per-cluster job histogram string.
         title_col: Output column name for the friendly title.
         summary_col: Output column name for the friendly summary.
+        display_col: Output column name for chart/table labels that must be
+            unique per want.
 
     Returns:
         A copy of ``df`` with ``title_col`` and ``summary_col`` added.
@@ -1046,6 +1070,25 @@ def attach_friendly_titles(
 
     out[title_col] = out.apply(title_for, axis=1) if want_label_col in out.columns else ""
     out[summary_col] = out.apply(summary_for, axis=1) if want_label_col in out.columns else ""
+    if title_col in out.columns:
+        title_counts = out[title_col].fillna("").astype(str).value_counts()
+
+        def display_for(row: pd.Series) -> str:
+            title = str(row.get(title_col) or "").strip() or "(unlabelled)"
+            if int(title_counts.get(title, 0)) <= 1:
+                return title
+            suffix = _distinctive_token(str(row.get(want_label_col, "")))
+            if not suffix:
+                label_parts = str(row.get(want_label_col, "")).lower().split("_")
+                suffix = next((hint for hint in _DUPLICATE_SUFFIX_HINTS if hint in label_parts), "")
+            if not suffix:
+                try:
+                    suffix = f"#{int(row.get(want_id_col))}"
+                except (TypeError, ValueError):
+                    suffix = "separate cluster"
+            return f"{title} — {suffix}"
+
+        out[display_col] = out.apply(display_for, axis=1)
     return out
 
 

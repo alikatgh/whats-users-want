@@ -8,9 +8,8 @@ strings and clustering.
 
 Pipeline:
 
-1. Load extractions in priority order:
-   ``ollama_gemma3-4b_extractions.csv`` → ``ollama_extractions.csv`` →
-   ``llm_extractions.csv`` → ``rules_extractions.csv``.
+1. Load the extraction table named by ``llm_extraction_status.json`` when
+   present, then fall back to the canonical local/Ollama aliases.
 2. Build ``_want_text`` per row by joining the four want/job/opportunity fields.
 3. Embed with the same multilingual sentence-transformer used in earlier stages.
 4. Cluster:
@@ -51,7 +50,7 @@ import json
 import re
 import sys
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -75,8 +74,8 @@ import pandas as pd
 #: signal averages out the noise from any one bad LLM answer, so two
 #: tickets that *mean* the same thing end up close even when their
 #: literal wording differs. This makes the downstream clustering
-#: (HDBSCAN / KMeans) far more robust on a dataset of 6,728 messy
-#: support tickets where the LLM occasionally leaves a field blank or
+#: (HDBSCAN / KMeans) far more robust on a dataset of 6,728 real
+#: support records where the LLM occasionally leaves a field blank or
 #: paraphrases oddly.
 WANT_TEXT_FIELDS = [
     "actual_user_want",
@@ -90,10 +89,10 @@ def load_extractions(run_dir: Path) -> pd.DataFrame:
     """Load the best available LLM extraction CSV from a stage run directory.
 
     Earlier pipeline stages may have written several extraction CSVs — one
-    per backend (Gemma-3 via Ollama, generic Ollama, a paid LLM, a
-    rules-based fallback). This loader walks a hand-curated priority list
-    and returns the first file that exists *and* has a non-zero size, so
-    the rest of the pipeline always sees a single, predictable DataFrame.
+    per backend/model, plus stable aliases. The status JSON is the safest
+    source of truth because it records the output stem from the latest
+    extraction command. We prefer that exact file, then fall back to stable
+    aliases and finally to newest model-specific local extraction files.
 
     Args:
         run_dir: Directory holding the stage outputs (e.g. ``runs/2026-05-03``).
@@ -121,15 +120,45 @@ def load_extractions(run_dir: Path) -> pd.DataFrame:
           keep metadata like "which file did this come from?" — the same
           information would pollute every row if stored as a column.
     """
-    candidates = [
-        run_dir / "ollama_gemma3-4b_extractions.csv",
-        run_dir / "ollama_extractions.csv",
-        run_dir / "llm_extractions.csv",
-        run_dir / "rules_extractions.csv",
-    ]
+    candidates: list[Path] = []
+    status_path = run_dir / "llm_extraction_status.json"
+    if status_path.exists():
+        try:
+            status = json.loads(status_path.read_text(encoding="utf-8"))
+            output_stem = str(status.get("output_stem") or "").strip()
+            if output_stem:
+                candidates.append(run_dir / f"{output_stem}.csv")
+        except Exception:
+            pass
+
+    candidates.extend(
+        [
+            run_dir / "ollama_extractions.csv",
+            run_dir / "llm_extractions.csv",
+        ]
+    )
+    candidates.extend(
+        sorted(
+            (
+                p
+                for p in run_dir.glob("ollama_*_extractions.csv")
+                if not p.name.startswith("smoke_")
+            ),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+    )
+    candidates.append(run_dir / "rules_extractions.csv")
+
+    seen: set[Path] = set()
     for path in candidates:
+        if path in seen:
+            continue
+        seen.add(path)
         if path.exists() and path.stat().st_size > 0:
             df = pd.read_csv(path)
+            if "_status" in df.columns:
+                df = df[df["_status"].fillna("").astype(str).eq("ok")].copy()
             df.attrs["source_file"] = path.name
             return df
     raise FileNotFoundError(f"No extraction CSV found in {run_dir}")
@@ -771,14 +800,14 @@ def write_findings(
           examples to a readable width without truncating the rest of
           the document. String slicing past the end is safe in Python
           (no IndexError).
-        * ``datetime.utcnow().isoformat(timespec='seconds')`` is the
+        * ``datetime.now(timezone.utc).isoformat(timespec='seconds')`` is the
           short, unambiguous timestamp format. ``timespec='seconds'``
           drops the microseconds that nobody reads.
     """
     lines: list[str] = []
     lines.append("# What Users Want — Taxonomy")
     lines.append("")
-    lines.append(f"Generated: {datetime.utcnow().isoformat(timespec='seconds')}")
+    lines.append(f"Generated: {datetime.now(timezone.utc).isoformat(timespec='seconds')}")
     lines.append(f"Source extraction: {extraction_source}")
     lines.append(f"Tickets analyzed: {total}")
     lines.append(f"Wants discovered: {(taxonomy['want_id'] != -1).sum()}")
@@ -914,7 +943,7 @@ def main() -> int:
     write_findings(findings_path, taxonomy, source_file, len(extractions))
 
     meta = {
-        "generated_at": datetime.utcnow().isoformat(timespec="seconds"),
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source_file": source_file,
         "rows": int(len(extractions)),
         "clusters": int(n_clusters),

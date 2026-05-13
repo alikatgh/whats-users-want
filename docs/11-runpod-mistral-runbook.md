@@ -11,21 +11,22 @@ recover from the problems we already hit.
 
 The goal is not just "run a model." The goal is:
 
-1. Clean and embed the full ticket export.
+1. Prepare and embed the full ticket export.
 2. Ask Mistral Small 3.2 24B to deeply read the high-signal tickets.
 3. Build the `What Users Want` taxonomy from those LLM-read tickets.
 4. Label the wants in human language.
-5. Project all cleaned tickets onto the discovered wants.
+5. Project all analysis-ready support records onto the discovered wants.
 6. Download the results.
 7. Terminate the pod and delete leftover volumes.
 
 Expected scale:
 
 - Source rows: about `6,728`
-- Clean tickets: about `6,702`
+- Analysis-ready support records: about `6,702`
 - High-signal LLM candidates: about `1,348`
 - The command says `--limit 1400`, but the script will only process the
   eligible high-signal tickets it can find. Seeing `candidates: 1348` is normal.
+- Optional full AI census: about `6,681` useful non-empty support records.
 
 ## Cost Mental Model
 
@@ -484,6 +485,74 @@ curl http://127.0.0.1:11434/api/tags
 
 Then repeat smoke test and full extraction.
 
+## Optional Step 12B - Spend Remaining Credits On A Full AI Census
+
+Use this only after Step 12 shows the high-signal run is healthy, for example:
+
+```json
+"ok_rows": 1348,
+"bad_output_rows": 0,
+"error_rows": 0
+```
+
+Why:
+
+- The `1,348` run is the strong evidence layer.
+- The projection stage maps the rest with embeddings.
+- If you still have RunPod credits and want the strongest possible readout,
+  you can ask Mistral to read every useful non-empty support record too.
+
+First, preview the queue:
+
+```bash
+python scripts/llm_extract_rich_tickets.py "$RUN_DIR" \
+  --backend ollama \
+  --model mistral-small3.2:24b \
+  --limit 6702 \
+  --min-context-score 0 \
+  --min-text-chars 1 \
+  --strategy risk_balanced \
+  --dry-run
+```
+
+Expected useful candidate count is about `6,681`, not exactly `6,702`,
+because a few records have effectively empty ticket text. Do not force empty
+records through the model unless you have a specific reason; they cannot add
+meaningful evidence.
+
+Then run it for real:
+
+```bash
+python scripts/llm_extract_rich_tickets.py "$RUN_DIR" \
+  --backend ollama \
+  --model mistral-small3.2:24b \
+  --limit 6702 \
+  --min-context-score 0 \
+  --min-text-chars 1 \
+  --strategy risk_balanced \
+  --timeout 240
+```
+
+Important:
+
+- Do **not** add `--no-resume`.
+- The script will reuse the existing
+  `ollama_mistral-small3.2-24b_extractions.jsonl`.
+- It will skip the `1,348` source rows already read and continue with the
+  remaining useful records.
+- This may take several more hours. At roughly `$0.70/hour`, that is still
+  usually cheaper than buying a large hosted API run, but watch the clock.
+
+Monitor it:
+
+```bash
+watch -n 30 'wc -l "$RUN_DIR"/ollama_mistral-small3.2-24b_extractions.jsonl 2>/dev/null; nvidia-smi'
+```
+
+When it finishes, good output should have `ok_rows` close to the useful
+candidate count and `error_rows: 0`. After this optional step, continue to
+Step 13 and rebuild the taxonomy from the larger AI-read file.
+
 ## Step 13 - Build The Taxonomy
 
 After extraction is valid:
@@ -539,7 +608,7 @@ python scripts/project_user_wants_full_corpus.py "$RUN_DIR"
 What this does:
 
 - keeps the Mistral-read tickets as confirmed evidence,
-- maps the full cleaned corpus to those wants using cached embeddings,
+- maps the full analysis-ready corpus to those wants using cached embeddings,
 - marks weak or ambiguous rows for review.
 
 Expected output:

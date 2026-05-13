@@ -177,7 +177,7 @@ disp = quality[cols_to_show].copy()
 for col in [c for c in disp.columns if c.endswith("_share")]:
     disp[col] = (disp[col] * 100).round(1).astype(str) + "%"
 disp = disp.rename(columns=rename_map)
-st.dataframe(disp, use_container_width=True, hide_index=True, height=380)
+st.dataframe(disp, width="stretch", hide_index=True, height=380)
 
 # ---- Adjusted model -----------------------------------------------------
 
@@ -211,7 +211,7 @@ if adjusted is not None and "adjusted_context_delta_vs_baseline" in adjusted.col
             },
         )
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), coloraxis_showscale=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif adj_view == "Lollipop":
         # Build a lollipop: thin line from 0 to value + a marker at the value.
         import plotly.graph_objects as go
@@ -245,7 +245,7 @@ if adjusted is not None and "adjusted_context_delta_vs_baseline" in adjusted.col
             yaxis_title="Manager",
             plot_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif adj_view == "Bars only":
         fig = px.bar(
             adj_sorted,
@@ -259,7 +259,7 @@ if adjusted is not None and "adjusted_context_delta_vs_baseline" in adjusted.col
             },
         )
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif adj_view == "Table":
         rename_adj = {
             "manager": "Manager",
@@ -269,7 +269,7 @@ if adjusted is not None and "adjusted_context_delta_vs_baseline" in adjusted.col
             "model_r2": "Model R²",
         }
         keep = [c for c in rename_adj.keys() if c in adjusted.columns]
-        st.dataframe(adjusted[keep].rename(columns=rename_adj), use_container_width=True, hide_index=True)
+        st.dataframe(adjusted[keep].rename(columns=rename_adj), width="stretch", hide_index=True)
 
 # ---- Non-parametric residuals ------------------------------------------
 
@@ -292,7 +292,7 @@ if residuals is not None and "avg_residual_vs_ticket_mix" in residuals.columns:
         labels={"avg_residual_vs_ticket_mix": "Residual", "manager": "Manager"},
     )
     fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), coloraxis_showscale=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     rename_res = {
         "manager": "Manager",
         "tickets": "Tickets",
@@ -305,7 +305,7 @@ if residuals is not None and "avg_residual_vs_ticket_mix" in residuals.columns:
     disp_r = residuals[keep].copy()
     if "rich_or_forensic_share" in disp_r.columns:
         disp_r["rich_or_forensic_share"] = (disp_r["rich_or_forensic_share"] * 100).round(1).astype(str) + "%"
-    st.dataframe(disp_r.rename(columns=rename_res), use_container_width=True, hide_index=True)
+    st.dataframe(disp_r.rename(columns=rename_res), width="stretch", hide_index=True)
 
 # ---- Evidence coaching --------------------------------------------------
 
@@ -332,4 +332,4 @@ if coaching is not None:
         if col.endswith("_share") and col not in final_rename:
             base = col.replace("has_", "").replace("_share", "").replace("_", " ")
             final_rename[col] = f"% with {base}"
-    st.dataframe(disp_c.rename(columns=final_rename), use_container_width=True, hide_index=True, height=420)
+    st.dataframe(disp_c.rename(columns=final_rename), width="stretch", hide_index=True, height=420)

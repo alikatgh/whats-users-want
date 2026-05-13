@@ -53,8 +53,8 @@ recent lift, and trust/money risk. Walk through the moving parts:
 * **``st.subheader``.** Renders a section header. Pages typically alternate
   ``st.subheader`` + caption + chart/table to give the eye a rhythm.
 
-* **``st.dataframe(df, use_container_width=True, hide_index=True,
-  height=520)``.** ``use_container_width=True`` stretches the table to the
+* **``st.dataframe(df, width="stretch", hide_index=True,
+  height=520)``.** ``width="stretch"`` stretches the table to the
   full column; ``hide_index=True`` removes the pandas integer index (which
   is meaningless to a non-coder); ``height=520`` pins a comfortable scroll
   area instead of letting the table grow indefinitely.
@@ -231,7 +231,7 @@ if {"opportunity_score", "tickets"} <= set(f.columns):
             color_continuous_scale="Reds",
         )
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif landscape_view == "Treemap by impact":
         fig = px.treemap(
             plot_df,
@@ -243,7 +243,7 @@ if {"opportunity_score", "tickets"} <= set(f.columns):
         )
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
         fig.update_traces(textinfo="label+value")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif landscape_view == "Donut by recommended action":
         if "Recommended action" in plot_df.columns:
             action_counts = plot_df["Recommended action"].value_counts()
@@ -251,7 +251,7 @@ if {"opportunity_score", "tickets"} <= set(f.columns):
             fig = px.pie(adf, names="Recommended action", values="Topics", hole=0.55, height=520)
             fig.update_traces(textposition="outside", textinfo="label+percent")
             fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Recommended actions not present in this run.")
     elif landscape_view == "Bar by impact":
@@ -260,12 +260,12 @@ if {"opportunity_score", "tickets"} <= set(f.columns):
                      height=max(380, 18 * len(adf)))
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10),
                           yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     elif landscape_view == "Table":
         cols = [c for c in ["Topic", "Tickets", "Impact score", "Unresolved share",
                             "Trust / money risk", "Recent vs baseline", "Recommended action"]
                 if c in plot_df.columns]
-        st.dataframe(plot_df[cols], use_container_width=True, hide_index=True, height=520)
+        st.dataframe(plot_df[cols], width="stretch", hide_index=True, height=520)
 
 # ---- Backlog table -------------------------------------------------------
 
@@ -292,7 +292,7 @@ for col in ["unresolved_share", "rich_or_forensic_share", "trust_money_risk"]:
     if col in display.columns:
         display[col] = (display[col] * 100).round(1).astype(str) + "%"
 display = display.rename(columns=rename_map)
-st.dataframe(display, use_container_width=True, hide_index=True, height=520)
+st.dataframe(display, width="stretch", hide_index=True, height=520)
 
 # ---- Drill into one topic -----------------------------------------------
 
@@ -328,6 +328,6 @@ if emerging is not None and "last_30_tickets" in emerging.columns:
     if "recent_unresolved_share" in em_disp.columns:
         em_disp["recent_unresolved_share"] = (em_disp["recent_unresolved_share"] * 100).round(1).astype(str) + "%"
     em_disp = em_disp.rename(columns=em_rename)
-    st.dataframe(em_disp, use_container_width=True, hide_index=True)
+    st.dataframe(em_disp, width="stretch", hide_index=True)
 else:
     st.info("Emerging topics table not found in this run.")

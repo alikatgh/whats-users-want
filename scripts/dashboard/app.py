@@ -64,10 +64,10 @@ def home_page() -> None:
 
     st.title("What users actually want")
     st.markdown(
-        "**A messy multilingual ticket export becomes a map of user intent.** "
-        "Use this dashboard to move from raw support rows to the few recurring "
-        "things users are actually trying to accomplish, plus the risks and "
-        "support actions attached to each one."
+        "**A living multilingual support record becomes a map of user intent.** "
+        "Use this dashboard to move from manager-written operational records to "
+        "the few recurring things users are actually trying to accomplish, plus "
+        "the risks and support actions attached to each one."
     )
 
     # ---- Run picker --------------------------------------------------------
@@ -85,6 +85,7 @@ def home_page() -> None:
     extractions = maybe_load_csv(run_dir, extraction_name) if extraction_name else None
     taxonomy = maybe_load_csv(run_dir, "user_wants_taxonomy.csv")
     full_assignments = maybe_load_csv(run_dir, "user_wants_all_assignments.csv")
+    full_summary = maybe_load_csv(run_dir, "user_wants_full_corpus_summary.csv")
     projection_meta = load_json(str(run_dir), "user_wants_projection_metadata.json") or {}
     backlog = (
         maybe_load_csv(run_dir, "refined_opportunity_backlog.csv")
@@ -137,7 +138,7 @@ def home_page() -> None:
         f"{raw_rows:,}" if raw_rows else "—",
     )
     c2.metric(
-        "Clean tickets",
+        "Analysis-ready records",
         f"{clean_rows:,}" if clean_rows else "—",
     )
     c3.metric(
@@ -146,7 +147,7 @@ def home_page() -> None:
         delta=f"of {ai_target:,} queued" if ai_target and ai_target != ai_rows else None,
     )
     if full_rows:
-        c4.metric("Full corpus mapped", f"{full_rows:,}", delta=f"{full_coverage:.1f}% of clean tickets")
+        c4.metric("Full corpus mapped", f"{full_rows:,}", delta=f"{full_coverage:.1f}% of records")
     else:
         c4.metric(
             "AI sample coverage",
@@ -164,7 +165,7 @@ def home_page() -> None:
             f"Active AI extraction: **{extraction_info.get('csv_name') or 'not found'}**"
             + (f" using **{model_label}**" if model_label else "")
             + (f" via **{backend_label}**." if backend_label else ".")
-            + f" The discovered taxonomy has been projected across **{full_rows:,}** cleaned tickets"
+            + f" The discovered taxonomy has been projected across **{full_rows:,}** analysis-ready support records"
             + (
                 f" with an assignment threshold of **{projection_meta.get('assignment_threshold')}**."
                 if projection_meta.get("assignment_threshold") is not None
@@ -177,7 +178,7 @@ def home_page() -> None:
             f"Active AI extraction: **{extraction_info.get('csv_name') or 'not found'}**"
             + (f" using **{model_label}**" if model_label else "")
             + (f" via **{backend_label}**." if backend_label else ".")
-            + " This run's taxonomy is based on the AI-read sample above, while the base pipeline still processed the full cleaned ticket set.",
+            + " This run's taxonomy is based on the AI-read sample above, while the base pipeline still processed the full support record.",
             icon=":material/psychology:",
         )
 
@@ -189,29 +190,47 @@ def home_page() -> None:
     if taxonomy is not None and len(taxonomy):
         st.subheader("Top things users actually want")
         st.caption(
-            "Each row below is a cluster of tickets that share the same goal. "
-            "Sizes show how many tickets land there; risk averages show how "
+            "Each row below is a cluster of support records that share the same goal. "
+            "Sizes show how many records land there; risk averages show how "
             "much money / trust / urgency is at stake."
         )
         human_labels = load_human_labels(run_dir)
         taxonomy = attach_friendly_titles(taxonomy, human_labels)
+        if full_summary is not None and "assigned_want_id" in full_summary.columns:
+            title_field = "want_display_title" if "want_display_title" in taxonomy.columns else "want_title"
+            title_lookup = dict(zip(taxonomy["want_id"], taxonomy[title_field]))
+            full_summary = full_summary.copy()
+            full_summary["want_display_title"] = full_summary["assigned_want_id"].map(title_lookup).fillna(
+                full_summary.get("want_title", full_summary.get("want_label", ""))
+            )
         rename_map = {
+            "want_display_title": "Want",
             "want_title": "Want",
             "want_summary": "What this is about",
-            "size": "Tickets",
-            "share": "Share",
+            "estimated_tickets": "Mapped records",
+            "estimated_share": "Share",
+            "llm_confirmed_tickets": "Mistral-read examples",
+            "size": "AI-read tickets",
             "top_jobs": "Top jobs",
             "top_emotions": "Top emotions",
             "avg_money_risk": "Money risk",
             "avg_trust_risk": "Trust risk",
             "avg_urgency": "Urgency",
         }
-        cols_to_show = [c for c in rename_map if c in taxonomy.columns]
-        sub = taxonomy[cols_to_show].head(10).copy()
-        if "share" in sub.columns:
-            sub["share"] = (sub["share"] * 100).round(1).astype(str) + "%"
+        table_source = full_summary if full_summary is not None and full_rows else taxonomy
+        if "want_display_title" in table_source.columns:
+            rename_map.pop("want_title", None)
+        if "estimated_tickets" in table_source.columns:
+            table_source = table_source.sort_values("estimated_tickets", ascending=False)
+        elif "size" in table_source.columns:
+            table_source = table_source.sort_values("size", ascending=False)
+        cols_to_show = [c for c in rename_map if c in table_source.columns]
+        sub = table_source[cols_to_show].head(10).copy()
+        for share_col in ["share", "estimated_share"]:
+            if share_col in sub.columns:
+                sub[share_col] = (sub[share_col] * 100).round(1).astype(str) + "%"
         sub = sub.rename(columns=rename_map)
-        st.dataframe(sub, use_container_width=True, hide_index=True)
+        st.dataframe(sub, width="stretch", hide_index=True)
 
     # ---- Deliverables ------------------------------------------------------
 
@@ -240,7 +259,7 @@ def home_page() -> None:
         (
             "Download full-corpus assignment workbook",
             run_dir / "user_wants_full_corpus_workbook.xlsx",
-            "Every cleaned ticket mapped to the discovered wants, plus review queue.",
+            "Every analysis-ready support record mapped to the discovered wants, plus review queue.",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             ":material/hub:",
         ),
@@ -278,8 +297,8 @@ def home_page() -> None:
     with col2:
         st.markdown("##### Explore the data")
         st.caption(
-            "**Map of all tickets** — every ticket as a dot, grouped by meaning.<br><br>"
-            "**Find a specific ticket** — search across 6,728 tickets.<br><br>"
+            "**Map of all records** — every support record as a dot, grouped by meaning.<br><br>"
+            "**Find a specific record** — search across 6,728 source rows.<br><br>"
             "**Browse any data table** — auto-discovered CSVs from the run.",
             unsafe_allow_html=True,
         )
@@ -319,11 +338,17 @@ def home_page() -> None:
         n_opp = len(backlog) if backlog is not None else 0
 
         rows = []
-        if taxonomy is not None and len(taxonomy):
-            for _, r in taxonomy.head(10).iterrows():
-                title = (r.get("want_title") or r.get("want_label") or "—").replace("<", "&lt;")
-                size = int(r.get("size") or 0)
-                share = (r.get("share") or 0) * 100
+        summary_source = full_summary if full_summary is not None and full_rows else taxonomy
+        if summary_source is not None and len(summary_source):
+            if "estimated_tickets" in summary_source.columns:
+                summary_source = summary_source.sort_values("estimated_tickets", ascending=False)
+            elif "size" in summary_source.columns:
+                summary_source = summary_source.sort_values("size", ascending=False)
+            for _, r in summary_source.head(10).iterrows():
+                title = (r.get("want_display_title") or r.get("want_title") or r.get("want_label") or "—").replace("<", "&lt;")
+                size = int(r.get("estimated_tickets") or r.get("size") or 0)
+                share = (r.get("estimated_share") if "estimated_share" in r else r.get("share")) or 0
+                share = share * 100
                 jobs = (r.get("top_jobs") or "").replace("<", "&lt;")
                 emo = (r.get("top_emotions") or "").replace("<", "&lt;")
                 money = r.get("avg_money_risk") or "—"
@@ -362,13 +387,13 @@ def home_page() -> None:
 </style></head>
 <body>
 <h1>What users actually want</h1>
-<p class="lead">A structured map of what {n_tickets:,} support tickets revealed about
+<p class="lead">A structured map of what {n_tickets:,} support records revealed about
 user intent, discovered from ticket text rather than the category column.</p>
 <p class="meta">Run: {run_dir.name} &middot; Generated: {timestamp} &middot;
 AI extraction: {model_label or "not available"}{(" via " + backend_label) if backend_label else ""}.</p>
 
 <div class="kpi">
-  <div><div class="v">{n_tickets:,}</div><div class="l">Tickets analyzed</div></div>
+  <div><div class="v">{n_tickets:,}</div><div class="l">Records analyzed</div></div>
   <div><div class="v">{n_users:,}</div><div class="l">Unique users</div></div>
   <div><div class="v">{n_extracted:,}</div><div class="l">Read by AI</div></div>
   <div><div class="v">{n_wants}</div><div class="l">Discovered wants</div></div>

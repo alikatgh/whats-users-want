@@ -285,7 +285,7 @@ for col, label in comp_pairs:
         yaxis_title="",
         legend_title_text="",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # ---- Risk level comparison ---------------------------------------------
 
@@ -322,7 +322,7 @@ if risk_pairs:
                     height=320,
                 )
                 fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
 # ---- Per-row diff for shared source_rows -------------------------------
 
@@ -363,7 +363,7 @@ if (
                         f"{friendly_name(right)}": str(r_row.get(c, ""))[:300],
                     }
                 )
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
 # ---- Pre-canned comparison report --------------------------------------
 

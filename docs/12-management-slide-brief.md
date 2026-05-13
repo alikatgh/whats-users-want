@@ -52,9 +52,9 @@ record at management scale.
 ## Proof Points To Use
 
 - We analyzed `6,702` analysis-ready support records from the export.
-- The current local run deeply read `250` rich records with a local AI model and mapped all `6,702` analysis-ready records to the discovered wants.
-- The next RunPod run is designed to deeply read about `1,348` high-signal records for stronger evidence.
-- The system found `17` repeated user wants in the current sample.
+- The current RunPod run deeply read `1,348` high-signal records with Mistral Small 3.2 24B and mapped all `6,702` analysis-ready records to the discovered wants.
+- The system found `20` repeated user-want clusters in the current evidence layer.
+- If we decide to spend remaining RunPod credits, the same run can resume and deeply read about `6,681` useful non-empty records.
 - The largest repeated wants are about account recovery, unban guidance, group visibility, scams/fraud, diamonds, SVIP access, and ban reason transparency.
 - The workflow produces auditable files: CSVs, Excel workbooks, Markdown findings, and dashboard pages.
 - Low-confidence mappings are not hidden; they go into a review queue.
@@ -194,23 +194,24 @@ different emotional states and different support needs.
 
 **Title:** The same few user wants repeat
 
-**Use current sample/full-corpus numbers as starting point:**
+**Use current full-corpus mapped numbers as starting point:**
 
-- Unban guidance requests: `1,084` mapped tickets.
-- Group visibility recovery: `776`.
-- Account access appeals: `708`.
-- Official dealer fraud reports: `560`.
-- Diamond purchase questions: `441`.
-- Unclear account restrictions: `439`.
-- SVIP access disputes: `418`.
-- Abusive reporting and blocking: `376`.
+- Account recovery / access appeal: `657` mapped records.
+- Channel visibility changes: `602`.
+- Account recovery / phone or ownership recovery: `590`.
+- Group member limit requests: `524`.
+- Diamond transaction issues: `521`.
+- Dealer recognition requests: `489`.
+- Banned group restoration: `441`.
+- Harassment reports: `373`.
 
 **Speaker note:**
 
-These numbers come from the current 250-record AI-read taxonomy projected
-across all analysis-ready support records. After the 1,348-record RunPod extraction, the exact
-counts may change, but the pattern is already clear: a small number of wants
-repeat many times.
+These numbers come from the current 1,348-record Mistral-read taxonomy
+projected across all 6,702 analysis-ready support records. If we later run a
+full AI census over the remaining useful short records, the exact counts may
+move, but the pattern is already clear: a small number of wants repeat many
+times.
 
 ### Slide 8 - Risk Is Not Equal Across Wants
 
@@ -302,15 +303,15 @@ intents repeat. We should operationalize those repeated intents.
 
 **On-slide bullets:**
 
-- Current version: 250 AI-read rich records, projected to all 6,702 analysis-ready support records.
-- Next stronger version: about 1,348 high-signal records deeply read by Mistral on RunPod.
-- Full projection will be rebuilt after the larger read.
+- Current version: 1,348 AI-read high-signal records, projected to all 6,702 analysis-ready support records.
+- Optional stronger version: resume the RunPod extraction and deeply read about 6,681 useful non-empty records.
+- Full projection should be rebuilt after any larger read.
 - Low-confidence tickets remain reviewable, not overclaimed.
 
 **Speaker note:**
 
-This is already useful as a management map. The 1,348-ticket RunPod pass makes
-the evidence stronger before final presentation.
+This is already useful as a management map. The 1,348-record RunPod pass gives
+us strong evidence; a full AI census would make the final readout stronger.
 
 ## Must-Have Visuals
 

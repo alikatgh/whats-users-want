@@ -1,7 +1,7 @@
 """What users actually want — explorer for the discovered want clusters.
 
-Filterable view of the discovered wants and the per-ticket assignments table,
-with interactive cross-tabs (want × emotion, want × money risk, want × manager).
+Filterable view of the discovered wants and assignment tables, with
+interactive cross-tabs (want × emotion, want × money risk, want × manager).
 
 Teaching
 --------
@@ -9,10 +9,11 @@ The structure of this page is "load two CSVs, filter both, render a few
 cross-tabs and a drill-down table." The interesting Streamlit/pandas/Plotly
 ideas here:
 
-* **Loading two related tables.** ``user_wants_taxonomy.csv`` is one row
-  per cluster; ``user_wants_assignments.csv`` is one row per ticket. We
-  build a ``title_lookup`` dict from cluster ID to friendly title and
-  ``map`` it onto the assignments table so charts can show titles instead
+* **Loading related tables.** ``user_wants_taxonomy.csv`` is one row per
+  cluster; ``user_wants_assignments.csv`` is the AI-read evidence layer;
+  ``user_wants_all_assignments.csv`` is the full mapped support record.
+  We build a ``title_lookup`` dict from cluster ID to friendly title and
+  ``map`` it onto the assignment tables so charts can show titles instead
   of raw IDs.
 
 * **Sidebar-driven filters.** The widgets inside ``with st.sidebar:`` mutate
@@ -70,7 +71,7 @@ st.info(
     icon=":material/help:",
 )
 st.caption(
-    "These clusters were discovered automatically by reading the rich tickets and "
+    "These clusters were discovered automatically by reading the richest support records and "
     "grouping them by what the user was trying to accomplish, not by category labels."
 )
 
@@ -143,17 +144,18 @@ def _attach_ticket_context(assignments_df: pd.DataFrame, enriched_df: pd.DataFra
 
 assignments = _attach_ticket_context(assignments, enriched)
 
-# Mirror the friendly title onto the assignments table by want_id for filters/charts.
-title_lookup = dict(zip(taxonomy["want_id"], taxonomy["want_title"]))
+# Mirror the chart-safe friendly title onto assignment tables by want_id.
+title_field = "want_display_title" if "want_display_title" in taxonomy.columns else "want_title"
+title_lookup = dict(zip(taxonomy["want_id"], taxonomy[title_field]))
 if "want_id" in assignments.columns:
     assignments = assignments.copy()
-    assignments["want_title"] = assignments["want_id"].map(title_lookup).fillna(
+    assignments["want_display_title"] = assignments["want_id"].map(title_lookup).fillna(
         assignments.get("want_label", "")
     )
 elif "want_label" in assignments.columns:
-    label_to_title = dict(zip(taxonomy["want_label"], taxonomy["want_title"]))
+    label_to_title = dict(zip(taxonomy["want_label"], taxonomy[title_field]))
     assignments = assignments.copy()
-    assignments["want_title"] = assignments["want_label"].map(label_to_title).fillna(
+    assignments["want_display_title"] = assignments["want_label"].map(label_to_title).fillna(
         assignments["want_label"]
     )
 
@@ -164,11 +166,13 @@ def _prepare_full_assignments(full_df: pd.DataFrame | None) -> pd.DataFrame | No
         return None
 
     out = full_df.copy()
-    if "assigned_want_id" in out.columns and "want_title" not in out.columns:
-        out["want_title"] = out["assigned_want_id"].map(title_lookup)
-    if "want_title" not in out.columns and "want_label" in out.columns:
-        label_to_title = dict(zip(taxonomy["want_label"], taxonomy["want_title"]))
-        out["want_title"] = out["want_label"].map(label_to_title).fillna(out["want_label"])
+    if "assigned_want_id" in out.columns:
+        out["want_display_title"] = out["assigned_want_id"].map(title_lookup).fillna(
+            out.get("want_title", out.get("want_label", ""))
+        )
+    if "want_display_title" not in out.columns and "want_label" in out.columns:
+        label_to_title = dict(zip(taxonomy["want_label"], taxonomy[title_field]))
+        out["want_display_title"] = out["want_label"].map(label_to_title).fillna(out["want_label"])
 
     rename_context = {
         "manager": "Manager",
@@ -188,6 +192,11 @@ def _prepare_full_assignments(full_df: pd.DataFrame | None) -> pd.DataFrame | No
 
 
 full_assignments = _prepare_full_assignments(full_assignments)
+if full_summary is not None and "assigned_want_id" in full_summary.columns:
+    full_summary = full_summary.copy()
+    full_summary["want_display_title"] = full_summary["assigned_want_id"].map(title_lookup).fillna(
+        full_summary.get("want_title", full_summary.get("want_label", ""))
+    )
 
 n_clusters = (taxonomy["want_id"] != -1).sum() if "want_id" in taxonomy.columns else len(taxonomy)
 if full_assignments is not None:
@@ -228,7 +237,9 @@ with st.sidebar:
 
 using_full_corpus = full_assignments is not None and analysis_scope.startswith("All mapped")
 chart_assignments = full_assignments if using_full_corpus else assignments
-title_col = "want_title" if "want_title" in chart_assignments.columns else "want_label"
+title_col = "want_display_title" if "want_display_title" in chart_assignments.columns else (
+    "want_title" if "want_title" in chart_assignments.columns else "want_label"
+)
 
 if len(taxonomy):
     if using_full_corpus and full_summary is not None and len(full_summary):
@@ -251,15 +262,15 @@ if len(taxonomy):
         top = sorted_taxonomy.iloc[0]
         size_col = "estimated_tickets" if using_full_corpus and "estimated_tickets" in top else "size"
         st.metric("Largest want", int(top.get(size_col, 0)))
-        st.caption(str(top.get("want_title") or top.get("want_label") or ""))
+        st.caption(str(top.get("want_display_title") or top.get("want_title") or top.get("want_label") or ""))
     with c2:
         if high_money is not None:
             st.metric("Highest money risk", f"{float(high_money.get('avg_money_risk', 0)):.2f}/5")
-            st.caption(str(high_money.get("want_title") or high_money.get("want_label") or ""))
+            st.caption(str(high_money.get("want_display_title") or high_money.get("want_title") or high_money.get("want_label") or ""))
     with c3:
         if high_trust is not None:
             st.metric("Highest trust risk", f"{float(high_trust.get('avg_trust_risk', 0)):.2f}/5")
-            st.caption(str(high_trust.get("want_title") or high_trust.get("want_label") or ""))
+            st.caption(str(high_trust.get("want_display_title") or high_trust.get("want_title") or high_trust.get("want_label") or ""))
 
 # ---- Filters -------------------------------------------------------------
 
@@ -306,6 +317,7 @@ if search_query:
         c
         for c in [
             "want_title",
+            "want_display_title",
             "_want_text",
             "support_next_step",
             "product_opportunity",
@@ -323,9 +335,11 @@ if sel_jobs is not None and "job_to_be_done" in filtered.columns:
 if sel_emotions is not None and "user_emotion" in filtered.columns:
     filtered = filtered[filtered["user_emotion"].astype(str).isin(sel_emotions)]
 if "money_risk_level" in filtered.columns:
-    filtered = filtered[(filtered["money_risk_level"] >= money_min) & (filtered["money_risk_level"] <= money_max)]
+    money_values = pd.to_numeric(filtered["money_risk_level"], errors="coerce")
+    filtered = filtered[money_values.ge(money_min) & money_values.le(money_max)]
 if "trust_risk_level" in filtered.columns:
-    filtered = filtered[(filtered["trust_risk_level"] >= trust_min) & (filtered["trust_risk_level"] <= trust_max)]
+    trust_values = pd.to_numeric(filtered["trust_risk_level"], errors="coerce")
+    filtered = filtered[trust_values.ge(trust_min) & trust_values.le(trust_max)]
 if sel_managers is not None and "Manager" in filtered.columns:
     filtered = filtered[filtered["Manager"].fillna("(unknown)").astype(str).isin(sel_managers)]
 if sel_statuses is not None and "Status" in filtered.columns:
@@ -361,13 +375,15 @@ else:
 
 # ---- Want size chart -----------------------------------------------------
 
-st.subheader("How many tickets fall into each want")
+st.subheader(
+    "How many records fall into each want" if using_full_corpus else "How many tickets fall into each want"
+)
 counts = filtered[title_col].value_counts() if title_col in filtered.columns else pd.Series()
 if len(counts):
     chart_picker(
-        counts_df(counts, "Want", "Tickets"),
+        counts_df(counts, "Want", "Records" if using_full_corpus else "Tickets"),
         label_col="Want",
-        value_col="Tickets",
+        value_col="Records" if using_full_corpus else "Tickets",
         key_prefix="want_breakdown",
         default="Horizontal bars",
     )
@@ -379,6 +395,7 @@ if using_full_corpus and full_summary is not None:
     summary_source = full_summary.copy()
     rename_map = {
         "want_title": "Want",
+        "want_display_title": "Want",
         "estimated_tickets": "Mapped records",
         "estimated_share": "Share of all records",
         "llm_confirmed_tickets": "Mistral-read examples",
@@ -388,6 +405,8 @@ if using_full_corpus and full_summary is not None:
         "review_queue_tickets": "Review queue",
         "want_label": "Cluster ID",
     }
+    if "want_display_title" in summary_source.columns:
+        rename_map.pop("want_title", None)
     cols_to_show = [c for c in rename_map.keys() if c in summary_source.columns]
     display_taxonomy = summary_source[cols_to_show].copy()
     if "estimated_share" in display_taxonomy.columns:
@@ -397,6 +416,7 @@ if using_full_corpus and full_summary is not None:
 else:
     rename_map = {
         "want_title": "Want",
+        "want_display_title": "Want",
         "want_summary": "What this cluster is about",
         "size": "Tickets",
         "share": "Share of analyzed tickets",
@@ -411,13 +431,15 @@ else:
         "next_step_1": "Suggested next step",
         "want_label": "Cluster ID",
     }
+    if "want_display_title" in taxonomy.columns:
+        rename_map.pop("want_title", None)
     cols_to_show = [c for c in rename_map.keys() if c in taxonomy.columns]
     display_taxonomy = taxonomy[cols_to_show].copy()
     for col in ["share", "high_money_risk_share", "high_trust_risk_share"]:
         if col in display_taxonomy.columns:
             display_taxonomy[col] = (display_taxonomy[col] * 100).round(1).astype(str) + "%"
 display_taxonomy = display_taxonomy.rename(columns=rename_map)
-st.dataframe(display_taxonomy, use_container_width=True, hide_index=True, height=380)
+st.dataframe(display_taxonomy, width="stretch", hide_index=True, height=380)
 
 # ---- Cross tabs ----------------------------------------------------------
 
@@ -430,7 +452,9 @@ tab1 = tabs[0]
 tab2 = tabs[1]
 tab3 = tabs[2] if _SHOW_MANAGERS and len(tabs) > 2 else None
 
-heat_y_col = "want_title" if "want_title" in filtered.columns else "want_label"
+heat_y_col = "want_display_title" if "want_display_title" in filtered.columns else (
+    "want_title" if "want_title" in filtered.columns else "want_label"
+)
 
 with tab1:
     if "user_emotion" in filtered.columns:
@@ -445,8 +469,8 @@ with tab1:
             height=max(360, 22 * len(ct)),
         )
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), xaxis_title="Emotion", yaxis_title="Want")
-        st.plotly_chart(fig, use_container_width=True)
-        st.dataframe(ct, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
+        st.dataframe(ct, width="stretch")
 
 with tab2:
     if "money_risk_level" in filtered.columns:
@@ -461,8 +485,8 @@ with tab2:
             height=max(360, 22 * len(ct)),
         )
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), xaxis_title="Money risk level", yaxis_title="Want")
-        st.plotly_chart(fig, use_container_width=True)
-        st.dataframe(ct, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
+        st.dataframe(ct, width="stretch")
 
 if tab3 is not None:
     with tab3:
@@ -478,20 +502,25 @@ if tab3 is not None:
                 height=max(360, 22 * len(ct)),
             )
             fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), xaxis_title="Manager", yaxis_title="Want")
-            st.plotly_chart(fig, use_container_width=True)
-            st.dataframe(ct, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
+            st.dataframe(ct, width="stretch")
         else:
             st.info("Manager column not available for this run.")
 
 # ---- Per-cluster drill-in -----------------------------------------------
 
 st.subheader("Drill into one want")
-drill_col = "want_title" if "want_title" in filtered.columns else "want_label"
+drill_col = "want_display_title" if "want_display_title" in filtered.columns else (
+    "want_title" if "want_title" in filtered.columns else "want_label"
+)
 labels = sorted(filtered[drill_col].dropna().unique()) if drill_col in filtered.columns else []
 if labels:
     chosen = st.selectbox("Want", labels)
     sub = filtered[filtered[drill_col] == chosen].copy()
-    st.write(f"**{len(sub)}** tickets match this want under the current filters.")
+    st.write(
+        f"**{len(sub)}** {'records' if using_full_corpus else 'tickets'} "
+        "match this want under the current filters."
+    )
     show_cols = {
         "source_row": "Ticket #",
         "UID": "UID",
@@ -522,7 +551,7 @@ if labels:
     ]
     st.dataframe(
         sub[keep].rename(columns={c: show_cols[c] for c in keep}),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         height=480,
     )

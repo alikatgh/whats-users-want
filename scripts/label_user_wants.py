@@ -25,7 +25,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -297,11 +297,8 @@ def main() -> int:
           or a model upgrade, without having to re-run anything.
         * **Metadata sidecar.** ``user_wants_human_labels_meta.json`` records
           when, with which model, and how successfully the labels were
-          generated. ``datetime.utcnow().isoformat(timespec="seconds")``
-          gives a sortable, second-granularity timestamp. Note: Python 3.12+
-          deprecates ``utcnow()`` in favour of
-          ``datetime.now(datetime.UTC)`` — the deprecation warning here is
-          harmless for our purposes, but worth knowing about.
+          generated. ``datetime.now(timezone.utc).isoformat(timespec="seconds")``
+          gives a sortable, timezone-aware timestamp.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path, help="outputs/option2_<timestamp>")
@@ -405,7 +402,7 @@ def main() -> int:
     print(f"OK: {ok}  cached: {cached}  bad/error: {bad}")
 
     meta = {
-        "generated_at": datetime.utcnow().isoformat(timespec="seconds"),
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "model": args.model,
         "ollama_url": args.ollama_url,
         "rows": int(len(out)),

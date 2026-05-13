@@ -131,9 +131,9 @@ with st.expander("Schema browser", expanded=False):
         "WHERE table_name = ? ORDER BY ordinal_position",
         [chosen_table],
     ).fetchdf()
-    st.dataframe(schema, use_container_width=True, hide_index=True)
+    st.dataframe(schema, width="stretch", hide_index=True)
     sample = con.execute(f'SELECT * FROM "{chosen_table}" LIMIT 10').fetchdf()
-    st.dataframe(sample, use_container_width=True, hide_index=True)
+    st.dataframe(sample, width="stretch", hide_index=True)
 
 # ---- Pre-canned queries -------------------------------------------------
 
@@ -202,7 +202,7 @@ if run or chosen_query != "(write my own)":
     try:
         df = con.execute(sql).fetchdf()
         st.success(f"{len(df):,} rows returned.")
-        st.dataframe(df, use_container_width=True, hide_index=True, height=520)
+        st.dataframe(df, width="stretch", hide_index=True, height=520)
         st.download_button(
             "Download result as CSV",
             df.to_csv(index=False).encode("utf-8"),

@@ -292,7 +292,7 @@ rename_map = {
     "is_resolved": "Resolved",
     "question_flat": "Ticket text (preview)",
 }
-st.dataframe(df.rename(columns=rename_map), use_container_width=True, hide_index=True, height=520)
+st.dataframe(df.rename(columns=rename_map), width="stretch", hide_index=True, height=520)
 
 # ---- Single-ticket view -------------------------------------------------
 
