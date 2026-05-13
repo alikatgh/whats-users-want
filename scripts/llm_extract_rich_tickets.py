@@ -1986,6 +1986,13 @@ def run(args: argparse.Namespace) -> None:
             timeout=args.timeout,
             output_stem=output_stem,
         )
+        status_counts = (
+            extracted.get("_status", pd.Series(dtype=str))
+            .fillna("unknown")
+            .astype(str)
+            .value_counts()
+            .to_dict()
+        )
         status = {
             "run_dir": str(run_dir),
             "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -1995,6 +2002,10 @@ def run(args: argparse.Namespace) -> None:
             "output_stem": output_stem,
             "candidates": int(len(candidates)),
             "extractions_rows": int(len(extracted)),
+            "ok_rows": int(status_counts.get("ok", 0)),
+            "bad_output_rows": int(status_counts.get("bad_output", 0)),
+            "error_rows": int(status_counts.get("error", 0)),
+            "status_counts": {str(k): int(v) for k, v in status_counts.items()},
         }
     (run_dir / "llm_extraction_status.json").write_text(json.dumps(status, indent=2), encoding="utf-8")
     append_report(run_dir, candidates, extracted, dry_run=dry_run, model=args.model, backend=args.backend, output_stem=output_stem)
