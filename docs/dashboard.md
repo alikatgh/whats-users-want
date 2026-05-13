@@ -21,6 +21,7 @@ The launcher uses port 8501 by default; pass another port as the first argument.
 
 | Page | What it shows |
 |---|---|
+| **Executive briefing** | Management-ready readout: decision ask, headline KPIs, business themes, top wants, and risk landscape. |
 | **Home / Overview** | Top numbers for the run, the headline taxonomy, file inventory. |
 | **Live extraction monitor** | Watches the local Ollama model process tickets in real time. Progress bar, ETA, valid / flagged / failed split, what jobs and emotions have been extracted so far, recent rows, log tail. Auto-refreshes every 5 seconds. |
 | **What users actually want** | Filterable explorer for the discovered want clusters. Want × emotion, want × money risk, want × manager heatmaps. Drill into any cluster. |

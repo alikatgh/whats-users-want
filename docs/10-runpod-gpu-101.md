@@ -164,17 +164,23 @@ Now run the expensive GPU part: local LLM extraction.
 python scripts/llm_extract_rich_tickets.py "$RUN_DIR" \
   --backend ollama \
   --model mistral-small3.2:24b \
-  --limit 250 \
+  --limit 1400 \
   --strategy risk_balanced
 ```
 
-This asks the model to read 250 rich tickets. This is the part we rented the
-GPU for.
+This asks the model to read the high-signal tickets first. This is the part we
+rented the GPU for.
 
 Then build the final user-wants taxonomy:
 
 ```bash
 python scripts/build_user_wants_taxonomy.py "$RUN_DIR"
+```
+
+Then map the full cleaned corpus to that taxonomy:
+
+```bash
+python scripts/project_user_wants_full_corpus.py "$RUN_DIR"
 ```
 
 ## How to know it is working
@@ -203,6 +209,10 @@ Most useful files:
 - `user_wants_assignments.csv`
 - `user_wants_workbook.xlsx`
 - `user_wants_findings.md`
+- `user_wants_all_assignments.csv`
+- `user_wants_full_corpus_summary.csv`
+- `user_wants_review_queue.csv`
+- `user_wants_full_corpus_workbook.xlsx`
 - `executive_findings.md`
 - `option2_analysis_workbook.xlsx`
 - `semantic_ticket_map.html`

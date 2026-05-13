@@ -113,8 +113,35 @@ if not csvs:
     st.stop()
 
 st.caption(f"{len(csvs)} data tables available in this run.")
+
+TABLE_HINTS = {
+    "user_wants_taxonomy.csv": "Start here: one row per discovered user want.",
+    "user_wants_assignments.csv": "One row per AI-read ticket, assigned to a discovered want.",
+    "ollama_extractions.csv": "Raw structured answers from the local/Ollama model.",
+    "llm_extractions.csv": "Canonical AI extraction table for this run.",
+    "enriched_tickets.csv": "The cleaned full ticket table before rich AI extraction.",
+    "desire_summary.csv": "Rule-based desire summary from the full cleaned dataset.",
+    "opportunity_backlog.csv": "Prioritized product/support opportunities, when generated.",
+    "refined_opportunity_backlog.csv": "Refined prioritized opportunities, when generated.",
+}
+priority = [
+    "user_wants_taxonomy.csv",
+    "user_wants_assignments.csv",
+    "ollama_extractions.csv",
+    "llm_extractions.csv",
+    "enriched_tickets.csv",
+    "desire_summary.csv",
+]
+ordered_csvs = sorted(
+    csvs,
+    key=lambda name: (
+        priority.index(name) if name in priority else len(priority),
+        name,
+    ),
+)
+
 labeled = []
-for name in csvs:
+for name in ordered_csvs:
     path = run_dir / name
     labeled.append(
         f"{name}   ·   {human_size(file_size_bytes(path))}   ·   "
@@ -122,7 +149,9 @@ for name in csvs:
     )
 
 choice_label = st.selectbox("Data table", labeled)
-choice = csvs[labeled.index(choice_label)]
+choice = ordered_csvs[labeled.index(choice_label)]
+if choice in TABLE_HINTS:
+    st.info(TABLE_HINTS[choice], icon=":material/tips_and_updates:")
 df = load_csv(str(run_dir), choice)
 
 if df is None or df.empty:
@@ -153,9 +182,14 @@ with st.expander("Column types and stats", expanded=False):
 
 with st.sidebar:
     st.header("Filters for this table")
+    text_columns = [
+        c
+        for c in df.columns
+        if df[c].dtype == "object" or pd.api.types.is_string_dtype(df[c])
+    ]
     text_col = st.selectbox(
         "Text-search column",
-        ["(none)"] + df.select_dtypes(include="object").columns.tolist(),
+        ["(none)"] + text_columns,
     )
     text_query = st.text_input("Contains", placeholder="search text...") if text_col != "(none)" else ""
     sort_col = st.selectbox("Sort by", ["(default)"] + df.columns.tolist())

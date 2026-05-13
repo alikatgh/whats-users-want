@@ -50,7 +50,8 @@ data_2may.csv (6,728 tickets, mixed RU/EN/CN, messy support notes)
         ├──> [insight_layer.py]          rank opportunities, find personas, score evidence
         ├──> [split_outlier_bucket.py]   split messy "topic -1" into 26 sub-themes
         ├──> [llm_extract_rich_tickets.py] extract structured fields with a local Ollama model
-        └──> [build_user_wants_taxonomy.py] cluster extracted wants into 17 user-want labels
+        ├──> [build_user_wants_taxonomy.py] cluster extracted wants into 17 user-want labels
+        └──> [project_user_wants_full_corpus.py] map all cleaned tickets to those wants
 ```
 
 All outputs land under `outputs/option2_<timestamp>/`. The latest run is **`outputs/option2_20260502_150055/`** — use this when presenting.

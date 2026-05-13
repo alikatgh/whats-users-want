@@ -18,6 +18,7 @@ import streamlit as st
 
 # Local feature flags — see scripts/dashboard/settings.py
 import settings as _settings
+from style import apply_dashboard_style
 
 # st.set_page_config must be the very first Streamlit call in the app.
 st.set_page_config(
@@ -26,6 +27,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+apply_dashboard_style()
 
 
 def _extraction_is_live(outputs_dir: Path) -> bool:
@@ -44,12 +46,14 @@ def home_page() -> None:
     """Landing page: pitch, headline finding, top wants, where-to-go-next."""
     from lib import (
         attach_friendly_titles,
+        discover_extraction_artifacts,
         file_mtime,
         file_size_bytes,
         human_size,
         jsonl_line_count,
         list_csvs,
         list_other_files,
+        load_json,
         load_human_labels,
         maybe_load_csv,
         run_picker,
@@ -60,19 +64,43 @@ def home_page() -> None:
 
     st.title("What users actually want")
     st.markdown(
-        "**The team had 6,728 messy support tickets in three languages "
-        "and a category column nobody trusted.** This dashboard is what came "
-        "out the other end: a list of what users are *actually* trying to "
-        "accomplish, ranked by how much it costs us not to fix it."
+        "**A messy multilingual ticket export becomes a map of user intent.** "
+        "Use this dashboard to move from raw support rows to the few recurring "
+        "things users are actually trying to accomplish, plus the risks and "
+        "support actions attached to each one."
     )
 
     # ---- Run picker --------------------------------------------------------
 
     run_dir = run_picker("Choose a run to view")
     if run_dir is None:
-        st.error("No analysis runs found yet. Run `scripts/option2_pipeline.py` first.")
+        st.error("No completed analysis runs were found. Load or select a completed run to view the briefing.")
         return
     st.session_state["run_dir"] = str(run_dir)
+
+    run_meta = load_json(str(run_dir), "run_metadata.json") or {}
+    extraction_info = discover_extraction_artifacts(run_dir)
+    enriched = maybe_load_csv(run_dir, "enriched_tickets.csv")
+    extraction_name = extraction_info.get("csv_name") or "llm_extractions.csv"
+    extractions = maybe_load_csv(run_dir, extraction_name) if extraction_name else None
+    taxonomy = maybe_load_csv(run_dir, "user_wants_taxonomy.csv")
+    full_assignments = maybe_load_csv(run_dir, "user_wants_all_assignments.csv")
+    projection_meta = load_json(str(run_dir), "user_wants_projection_metadata.json") or {}
+    backlog = (
+        maybe_load_csv(run_dir, "refined_opportunity_backlog.csv")
+        if maybe_load_csv(run_dir, "refined_opportunity_backlog.csv") is not None
+        else maybe_load_csv(run_dir, "opportunity_backlog.csv")
+    )
+
+    raw_rows = safe_int(run_meta.get("rows_in_csv"), 0)
+    clean_rows = safe_int(run_meta.get("rows_enriched"), len(enriched) if enriched is not None else 0)
+    ai_rows = len(extractions) if extractions is not None else safe_int(extraction_info.get("rows"), 0)
+    ai_target = safe_int(extraction_info.get("candidates"), ai_rows)
+    ai_coverage = (ai_rows / clean_rows * 100) if clean_rows else 0
+    full_rows = len(full_assignments) if full_assignments is not None else 0
+    full_coverage = (full_rows / clean_rows * 100) if clean_rows else 0
+    model_label = str(extraction_info.get("model") or "local rules").strip()
+    backend_label = str(extraction_info.get("backend") or "").strip()
 
     # ---- Headline finding --------------------------------------------------
 
@@ -102,45 +130,59 @@ def home_page() -> None:
 
     # ---- Top numbers -------------------------------------------------------
 
-    enriched = maybe_load_csv(run_dir, "enriched_tickets.csv")
-    extractions = (
-        maybe_load_csv(run_dir, "ollama_gemma3-4b_extractions.csv")
-        if maybe_load_csv(run_dir, "ollama_gemma3-4b_extractions.csv") is not None
-        else maybe_load_csv(run_dir, "llm_extractions.csv")
-    )
-    taxonomy = maybe_load_csv(run_dir, "user_wants_taxonomy.csv")
-    backlog = (
-        maybe_load_csv(run_dir, "refined_opportunity_backlog.csv")
-        if maybe_load_csv(run_dir, "refined_opportunity_backlog.csv") is not None
-        else maybe_load_csv(run_dir, "opportunity_backlog.csv")
-    )
-
     st.subheader("At a glance")
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric(
-        "Tickets analyzed",
-        f"{len(enriched):,}" if enriched is not None else "—",
+        "Rows in source CSV",
+        f"{raw_rows:,}" if raw_rows else "—",
     )
     c2.metric(
-        "Unique users",
-        f"{enriched['uid'].astype(str).str.strip().replace('', None).dropna().nunique():,}"
-        if enriched is not None and "uid" in enriched.columns
-        else "—",
+        "Clean tickets",
+        f"{clean_rows:,}" if clean_rows else "—",
     )
     c3.metric(
         "Tickets read by AI",
-        f"{len(extractions):,}" if extractions is not None else "0",
+        f"{ai_rows:,}" if ai_rows else "0",
+        delta=f"of {ai_target:,} queued" if ai_target and ai_target != ai_rows else None,
     )
-    c4.metric(
+    if full_rows:
+        c4.metric("Full corpus mapped", f"{full_rows:,}", delta=f"{full_coverage:.1f}% of clean tickets")
+    else:
+        c4.metric(
+            "AI sample coverage",
+            f"{ai_coverage:.1f}%" if ai_coverage else "—",
+        )
+    c5.metric(
         "Discovered wants",
         f"{(taxonomy['want_id'] != -1).sum() if 'want_id' in taxonomy.columns else len(taxonomy)}"
         if taxonomy is not None
         else "—",
     )
-    c5.metric(
-        "Ranked opportunities",
-        f"{len(backlog):,}" if backlog is not None else "—",
-    )
+
+    if full_rows:
+        st.info(
+            f"Active AI extraction: **{extraction_info.get('csv_name') or 'not found'}**"
+            + (f" using **{model_label}**" if model_label else "")
+            + (f" via **{backend_label}**." if backend_label else ".")
+            + f" The discovered taxonomy has been projected across **{full_rows:,}** cleaned tickets"
+            + (
+                f" with an assignment threshold of **{projection_meta.get('assignment_threshold')}**."
+                if projection_meta.get("assignment_threshold") is not None
+                else "."
+            ),
+            icon=":material/hub:",
+        )
+    else:
+        st.info(
+            f"Active AI extraction: **{extraction_info.get('csv_name') or 'not found'}**"
+            + (f" using **{model_label}**" if model_label else "")
+            + (f" via **{backend_label}**." if backend_label else ".")
+            + " This run's taxonomy is based on the AI-read sample above, while the base pipeline still processed the full cleaned ticket set.",
+            icon=":material/psychology:",
+        )
+
+    if backlog is not None:
+        st.caption(f"Ranked opportunity rows available: **{len(backlog):,}**.")
 
     # ---- Top wants ---------------------------------------------------------
 
@@ -171,19 +213,68 @@ def home_page() -> None:
         sub = sub.rename(columns=rename_map)
         st.dataframe(sub, use_container_width=True, hide_index=True)
 
+    # ---- Deliverables ------------------------------------------------------
+
+    deliverables = [
+        (
+            "Read the written findings",
+            run_dir / "user_wants_findings.md",
+            "Markdown summary of the discovered wants.",
+            "text/markdown",
+            ":material/article:",
+        ),
+        (
+            "Download the workbook",
+            run_dir / "user_wants_workbook.xlsx",
+            "Spreadsheet with taxonomy and ticket assignments.",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ":material/table:",
+        ),
+        (
+            "Review the raw AI extraction",
+            run_dir / (extraction_info.get("csv_name") or "ollama_extractions.csv"),
+            "One row per ticket read by the local/Ollama model.",
+            "text/csv",
+            ":material/data_object:",
+        ),
+        (
+            "Download full-corpus assignment workbook",
+            run_dir / "user_wants_full_corpus_workbook.xlsx",
+            "Every cleaned ticket mapped to the discovered wants, plus review queue.",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ":material/hub:",
+        ),
+    ]
+    available = [item for item in deliverables if item[1].exists()]
+    if available:
+        st.subheader("Open the deliverables")
+        cols = st.columns(len(available))
+        for col, (label, path, caption, mime, icon) in zip(cols, available):
+            with col:
+                st.markdown(f"##### {label}")
+                st.caption(caption)
+                st.download_button(
+                    "Download",
+                    data=path.read_bytes(),
+                    file_name=path.name,
+                    mime=mime,
+                    icon=icon,
+                    key=f"download_{path.name}",
+                )
+
     # ---- Where to go next --------------------------------------------------
 
     st.subheader("Where to go next")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("##### See the findings")
-        st.caption(
-            "**What users actually want** — the full ranked taxonomy with "
-            "filters and heatmaps.<br><br>"
-            "**Where to act first** — opportunities scored by impact.<br><br>"
-            "**How managers compare** — note quality leaderboard.",
-            unsafe_allow_html=True,
-        )
+        lines = [
+            "**What users actually want** — the full ranked taxonomy with filters and heatmaps.",
+            "**Where to act first** — opportunities scored by impact.",
+        ]
+        if _settings.SHOW_MANAGER_COMPARISONS:
+            lines.append("**How managers compare** — note quality leaderboard.")
+        st.caption("<br><br>".join(lines), unsafe_allow_html=True)
     with col2:
         st.markdown("##### Explore the data")
         st.caption(
@@ -274,7 +365,7 @@ def home_page() -> None:
 <p class="lead">A structured map of what {n_tickets:,} support tickets revealed about
 user intent, discovered from ticket text rather than the category column.</p>
 <p class="meta">Run: {run_dir.name} &middot; Generated: {timestamp} &middot;
-All processing local; no data was sent to any external service.</p>
+AI extraction: {model_label or "not available"}{(" via " + backend_label) if backend_label else ""}.</p>
 
 <div class="kpi">
   <div><div class="v">{n_tickets:,}</div><div class="l">Tickets analyzed</div></div>
@@ -306,7 +397,7 @@ All processing local; no data was sent to any external service.</p>
 </table>
 
 <footer>
-Built locally with Python, sentence-transformers (multilingual MiniLM), HDBSCAN, BERTopic, and local Ollama models.
+Built with Python, sentence-transformers (multilingual MiniLM), HDBSCAN, BERTopic, and Ollama-compatible local model outputs.
 Source code, engineering docs, and the 101 self-paced course are in the project repository.
 </footer>
 </body></html>
@@ -332,20 +423,10 @@ Source code, engineering docs, and the 101 self-paced course are in the project 
             f"**Excel workbooks:** {len(other['xlsx'])}. "
             f"**Interactive maps:** {len(other['html'])}."
         )
-        extraction_files = sorted(run_dir.glob("ollama_*_extractions.jsonl"), key=lambda p: p.stat().st_mtime)
-        ext_jsonl = extraction_files[-1] if extraction_files else None
+        ext_jsonl = extraction_info.get("jsonl_path")
         if ext_jsonl is not None and ext_jsonl.exists():
             completed = jsonl_line_count(ext_jsonl)
-            status_path = run_dir / "llm_extraction_status.json"
-            target = None
-            if status_path.exists():
-                import json as _json
-                try:
-                    target = safe_int(
-                        _json.loads(status_path.read_text(encoding="utf-8")).get("candidates")
-                    )
-                except Exception:
-                    target = None
+            target = safe_int(extraction_info.get("candidates"), 0)
             if target:
                 st.info(
                     f"Local AI has read **{completed:,} of {target:,}** rich tickets in this run."
@@ -357,21 +438,28 @@ Source code, engineering docs, and the 101 self-paced course are in the project 
 
     st.markdown("---")
     st.caption(
-        "**About this dashboard.** All data is local. No tickets, prompts, or "
-        "model outputs leave the laptop running this dashboard. The AI model "
-        "runs on the same machine via Ollama. The pipeline is "
-        "open-source — see the engineering docs for how every number on this "
-        "page is computed."
+        "**About this dashboard.** It reads files from this project folder. "
+        "No extra API calls happen while you browse. AI extraction outputs may "
+        "come from a local machine or a rented GPU pod; this page only visualizes "
+        "the saved run artefacts. The pipeline is open-source — see the "
+        "engineering docs for how every number on this page is computed."
     )
 
 
 # ---- Navigation ----------------------------------------------------------
 
+executive = st.Page(
+    "pages/11_Executive_Briefing.py",
+    title="Executive briefing",
+    icon=":material/leaderboard:",
+    default=True,
+    url_path="executive_briefing",
+)
+
 home = st.Page(
     home_page,
-    title="Start here",
+    title="Analyst overview",
     icon=":material/home:",
-    default=True,
 )
 
 findings = [
@@ -463,7 +551,7 @@ tools = [
 ]
 
 _nav: dict[str, list] = {
-    "": [home],
+    "": [executive, home],
     "Findings": findings,
     "Explore the data": explore,
     "Quality checks": quality,

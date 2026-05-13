@@ -95,7 +95,10 @@ if run_dir is None:
 
 personas = maybe_load_csv(run_dir, "repeat_user_personas.csv")
 if personas is None:
-    st.warning("This run does not have `repeat_user_personas.csv`. Run `scripts/insight_layer.py` first.")
+    st.warning(
+        "This run does not include repeat-customer personas yet. "
+        "Choose a completed run with persona outputs to view this page."
+    )
     st.stop()
 
 # ---- Friendly persona labels --------------------------------------------

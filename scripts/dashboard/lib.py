@@ -343,6 +343,75 @@ def tail_jsonl(path: Path, n: int = 25) -> list[dict[str, Any]]:
     return out
 
 
+def discover_extraction_artifacts(run_dir: Path) -> dict[str, Any]:
+    """Find the most relevant LLM extraction files for a run.
+
+    New runs can contain several extraction tables: a smoke test, a canonical
+    ``ollama_extractions.csv`` copy, and a model-specific file such as
+    ``ollama_mistral-small3.2-24b_extractions.csv``. The status JSON is the
+    source of truth when present; otherwise we fall back to the newest
+    non-smoke extraction file.
+    """
+    status = load_json(str(run_dir), "llm_extraction_status.json") or {}
+    output_stem = str(status.get("output_stem") or "").strip()
+
+    preferred_csvs: list[Path] = []
+    preferred_jsonls: list[Path] = []
+    if output_stem:
+        preferred_csvs.append(run_dir / f"{output_stem}.csv")
+        preferred_jsonls.append(run_dir / f"{output_stem}.jsonl")
+
+    preferred_csvs.extend(
+        [
+            run_dir / "ollama_extractions.csv",
+            run_dir / "llm_extractions.csv",
+        ]
+    )
+    preferred_jsonls.extend(
+        [
+            run_dir / "ollama_extractions.jsonl",
+            run_dir / "llm_extractions.jsonl",
+        ]
+    )
+
+    csv_path = next((p for p in preferred_csvs if p.exists()), None)
+    jsonl_path = next((p for p in preferred_jsonls if p.exists()), None)
+
+    if csv_path is None:
+        candidates = [
+            p
+            for p in run_dir.glob("*_extractions.csv")
+            if not p.name.startswith("smoke_")
+        ]
+        csv_path = max(candidates, key=lambda p: p.stat().st_mtime, default=None)
+
+    if jsonl_path is None:
+        candidates = [
+            p
+            for p in run_dir.glob("*_extractions.jsonl")
+            if not p.name.startswith("smoke_")
+        ]
+        jsonl_path = max(candidates, key=lambda p: p.stat().st_mtime, default=None)
+
+    rows = safe_int(status.get("extractions_rows"), 0)
+    if rows == 0 and jsonl_path is not None:
+        rows = jsonl_line_count(jsonl_path)
+
+    return {
+        "csv_path": csv_path,
+        "csv_name": csv_path.name if csv_path is not None else "",
+        "jsonl_path": jsonl_path,
+        "jsonl_name": jsonl_path.name if jsonl_path is not None else "",
+        "rows": rows,
+        "candidates": safe_int(status.get("candidates"), 0),
+        "backend": str(status.get("backend") or ""),
+        "model": str(status.get("model") or ""),
+        "generated_at": str(status.get("generated_at") or ""),
+        "output_stem": output_stem,
+        "status": status,
+    }
+
+
 def file_mtime(path: Path) -> datetime | None:
     """Return the file's last-modified time as a ``datetime``.
 

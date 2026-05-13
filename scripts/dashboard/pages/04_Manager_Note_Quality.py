@@ -101,8 +101,7 @@ if not getattr(_settings, "SHOW_MANAGER_COMPARISONS", True):
     st.title("Manager note quality")
     st.warning(
         "Manager comparisons are currently disabled. "
-        "Set `SHOW_MANAGER_COMPARISONS = True` in `scripts/dashboard/settings.py` "
-        "to re-enable this page."
+        "Ask the dashboard owner to enable this quality-check page when it is needed."
     )
     st.stop()
 

@@ -117,7 +117,10 @@ original = maybe_load_csv(run_dir, "opportunity_backlog.csv")
 emerging = maybe_load_csv(run_dir, "emerging_topics.csv")
 
 if refined is None and original is None:
-    st.warning("Run `scripts/insight_layer.py outputs/<run_dir>` first to generate the backlog.")
+    st.warning(
+        "This run does not include an opportunity backlog yet. "
+        "Choose a completed run with opportunity outputs to view this page."
+    )
     st.stop()
 
 source = "refined backlog (with outlier sub-themes)" if refined is not None else "original backlog"

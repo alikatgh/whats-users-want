@@ -1,6 +1,6 @@
 # 02 — Pipeline Walkthrough
 
-The pipeline has six stages. Each is a separate script in [scripts/](../scripts/). They write into the same run directory under `outputs/option2_<timestamp>/`. The current latest run is `outputs/option2_20260502_150055/`.
+The pipeline has seven stages. Each is a separate script in [scripts/](../scripts/). They write into the same run directory under `outputs/option2_<timestamp>/`. The current latest run is `outputs/option2_20260502_150055/`.
 
 ```
 Stage 1  option2_pipeline.py          → clean, embed, cluster, score managers
@@ -9,6 +9,7 @@ Stage 3  insight_layer.py             → opportunity backlog, personas, evidenc
 Stage 4  split_outlier_bucket.py      → split BERTopic noise bucket into 26 sub-themes
 Stage 5  llm_extract_rich_tickets.py  → run a local Ollama model on rich tickets
 Stage 6  build_user_wants_taxonomy.py → cluster extracted wants into a final taxonomy
+Stage 7  project_user_wants_full_corpus.py → map every cleaned ticket to the learned wants
 ```
 
 Each stage reads the artifacts from earlier stages. You can rerun any stage on its own.
@@ -179,12 +180,33 @@ The result is 53 named topics like `0_account_restore_deleted_number`, `1_diamon
 
 ---
 
+## Stage 7 — `project_user_wants_full_corpus.py`
+
+**Purpose.** Stage 6 gives a high-quality taxonomy from tickets the local LLM actually read. Stage 7 projects the rest of the cleaned corpus into that taxonomy without pretending every short row received a deep LLM read.
+
+**What it does.**
+
+1. Treats `user_wants_assignments.csv` as the LLM-confirmed set.
+2. Embeds each confirmed `_want_text` and builds one centroid per discovered want.
+3. Embeds every cleaned ticket from `enriched_tickets.csv`.
+4. Assigns each ticket to the nearest discovered want with a confidence band.
+5. Marks weak, ambiguous, or high-risk rows for a targeted follow-up LLM review queue.
+
+**Key outputs.**
+- `user_wants_all_assignments.csv` — every cleaned ticket mapped to a discovered want
+- `user_wants_full_corpus_summary.csv` — estimated full-corpus size/share per want
+- `user_wants_review_queue.csv` — smart shortlist for the next LLM pass
+- `user_wants_full_corpus_workbook.xlsx`
+- `user_wants_projection_metadata.json`
+
+---
+
 ## How the stages depend on each other
 
 ```
 data_2may.csv ──> Stage 1 ─┬─> Stage 2 ──> Stage 3 ──> Stage 4
                            │
-                           └─> Stage 5 ──> Stage 6
+                           └─> Stage 5 ──> Stage 6 ──> Stage 7
 ```
 
-Stages 2-4 are about validation and decisions. Stages 5-6 are about meaning. You can present either branch, but the most novel result is Stage 6.
+Stages 2-4 are about validation and decisions. Stages 5-7 are about meaning: deep LLM extraction, user-want taxonomy, and full-corpus projection. You can present either branch, but the most novel result is the Stage 6/7 combination.

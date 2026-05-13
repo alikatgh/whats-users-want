@@ -202,6 +202,22 @@ This writes:
 - `user_wants_findings.md` — human-readable summary
 - `user_wants_metadata.json`
 
+## Project User Wants To The Full Corpus
+
+After the taxonomy is built, map every cleaned ticket to the discovered wants without sending every short row through the local LLM:
+
+```bash
+.venv/bin/python scripts/project_user_wants_full_corpus.py outputs/option2_YYYYMMDD_HHMMSS
+```
+
+This writes:
+
+- `user_wants_all_assignments.csv` — every cleaned ticket mapped to a discovered want with a confidence band
+- `user_wants_full_corpus_summary.csv` — estimated full-corpus size/share per want
+- `user_wants_review_queue.csv` — ambiguous or high-risk rows worth a targeted follow-up LLM pass
+- `user_wants_full_corpus_workbook.xlsx`
+- `user_wants_projection_metadata.json`
+
 ## Queue Or Run Paid/API Extraction
 
 Dry-run first. This creates the candidate queue, schema, and prompt without API calls:
