@@ -288,6 +288,7 @@ def home_page() -> None:
     with col1:
         st.markdown("##### See the findings")
         lines = [
+            "**Macro and micro reality** — timeline, forecast and repeat-user journeys.",
             "**What users actually want** — the full ranked taxonomy with filters and heatmaps.",
             "**Where to act first** — opportunities scored by impact.",
         ]
@@ -488,6 +489,12 @@ home = st.Page(
 )
 
 findings = [
+    st.Page(
+        "pages/12_Longitudinal_Reality.py",
+        title="Macro and micro reality",
+        icon=":material/timeline:",
+        url_path="findings_longitudinal_reality",
+    ),
     st.Page(
         "pages/02_What_Users_Want.py",
         title="What users actually want",

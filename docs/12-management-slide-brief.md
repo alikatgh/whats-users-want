@@ -56,6 +56,10 @@ record at management scale.
 - The system found `20` repeated user-want clusters in the current evidence layer.
 - The model output is not just counts: it separates literal request from actual user intent, extracts user emotion, trust/money/safety risk, missing evidence, support next step, and product/process opportunity.
 - The dashboard now includes a model-only readout: category-vs-intent mismatch, intents crossing multiple source categories, missing-evidence patterns, and an AI-created operating backlog.
+- The dashboard now includes a longitudinal layer over `11` complete months (`2025-06` through `2026-04`), excluding the partial `2026-05` month from trend comparisons.
+- The longitudinal layer found `1,233` repeat users with 2+ records, `772` repeat users with 3+ records, and `5,512` repeat-user journey events.
+- The largest repeat-user archetype is not a row count: `304` multi-problem users generated `2,943` records across account, group, scam, dealer, visibility, and status issues.
+- The system now shows individual UID roadmaps: first ticket, latest ticket, want path, status path, managers touched, unresolved share, and recommended operating action.
 - If we decide to spend remaining RunPod credits, the same run can resume and deeply read about `6,681` useful non-empty records.
 - The largest repeated wants are about account recovery, unban guidance, group visibility, scams/fraud, diamonds, SVIP access, and ban reason transparency.
 - The workflow produces auditable files: CSVs, Excel workbooks, Markdown findings, and dashboard pages.
@@ -186,6 +190,8 @@ making the repeated intents visible.
 - The model separates "what the user literally asked" from "what they actually need."
 - It extracts missing evidence from free-text notes: ban reason, transaction proof, voice sample, screenshots, IDs, timestamps.
 - It synthesizes support playbooks and product/process fixes from repeated cases.
+- It links repeat tickets by UID into journeys, so management can see a user's problem path instead of isolated rows.
+- It compares complete months and creates an early-warning view of which wants are gaining momentum.
 
 **Speaker note:**
 
@@ -193,6 +199,23 @@ This is the strongest defense of the GPU/model work. If the presentation only
 shows bars, it looks like a spreadsheet. The value is the semantic layer:
 intent, risk, missing evidence, and operating actions that are not present as
 clean spreadsheet columns.
+
+### Slide 5C - Macro And Micro Reality
+
+**Title:** The GPU work is useful when it connects time + people + intent
+
+**On-slide bullets:**
+
+- Macro view: which wants rose or fell month by month.
+- Early warning: which wants are likely to need attention next month.
+- Micro view: which UIDs keep returning, what sequence of problems they bring, and whether the latest state is solved, failed, or still open.
+- Operating view: repeat-user archetypes show which playbooks need ownership.
+
+**Speaker note:**
+
+This is the slide that prevents the project from looking like a spreadsheet
+demo. The value is not only "how many rows." It is "what changed over time,
+which users are stuck in loops, and what operating system should change."
 
 ### Slide 6 - Headline Finding
 
@@ -250,6 +273,24 @@ times.
 Management should not prioritize only by volume. Some smaller clusters deserve
 priority because they affect trust, money, or platform fairness.
 
+### Slide 8B - Repeat-User Journeys
+
+**Title:** Some tickets are not separate cases; they are continuing user stories
+
+**On-slide bullets:**
+
+- `1,233` users appear in the support record more than once.
+- `772` users appear three or more times.
+- The top repeated UID has `70` records over `292` days.
+- Multi-problem users generated `2,943` records.
+- Recommendation: assign an owner for repeated high-severity users instead of treating every row as a fresh isolated ticket.
+
+**Speaker note:**
+
+This is where the project becomes operationally serious. A repeated UID is not
+just another count. It is a roadmap of where support, policy, product, and
+trust decisions are failing to close the loop.
+
 ### Slide 9 - What Management Can Do With This
 
 **Title:** This turns ticket patterns into operating changes
@@ -291,6 +332,7 @@ or policy decisions.
 **On-slide bullets:**
 
 - Executive briefing: decision ask, KPIs, top wants, risk landscape.
+- Macro and micro reality: timelines, early warning, repeat-user journeys, and journey archetypes.
 - What users want: filterable taxonomy and ticket examples.
 - Browse tables: inspect any generated CSV.
 - Full-corpus mapping: see every analysis-ready record mapped to a want.

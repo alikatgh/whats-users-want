@@ -16,8 +16,10 @@ The goal is not just "run a model." The goal is:
 3. Build the `What Users Want` taxonomy from those LLM-read tickets.
 4. Label the wants in human language.
 5. Project all analysis-ready support records onto the discovered wants.
-6. Download the results.
-7. Terminate the pod and delete leftover volumes.
+6. Build the longitudinal layer: monthly trend, early warning, and repeat-user
+   journeys.
+7. Download the results.
+8. Terminate the pod and delete leftover volumes.
 
 Expected scale:
 
@@ -632,7 +634,38 @@ Expected files:
 - `user_wants_full_corpus_workbook.xlsx`
 - `user_wants_projection_metadata.json`
 
-## Step 16 - Package Results
+## Step 16 - Build Timeline And User-Journey Insights
+
+Run:
+
+```bash
+python scripts/build_longitudinal_insights.py "$RUN_DIR"
+```
+
+Why:
+
+- A want-count bar chart is not enough for management.
+- This stage shows what changed month by month.
+- It creates a simple next-month early warning score.
+- It finds repeated-user journeys: the same UID returning across days or months
+  with multiple problems, statuses, managers, and wants.
+- It creates archetypes like account recovery loops, safety reporters, money /
+  dealer disputes, creator/group operators, and multi-problem power users.
+
+Expected files:
+
+- `longitudinal_want_monthly_trends.csv`
+- `longitudinal_emerging_wants.csv`
+- `longitudinal_user_journeys.csv`
+- `longitudinal_user_journey_events.csv`
+- `longitudinal_journey_archetypes.csv`
+- `longitudinal_findings.md`
+- `longitudinal_metadata.json`
+
+This is the layer to show when someone asks why this is more than a spreadsheet
+pivot table.
+
+## Step 17 - Package Results
 
 Create one archive:
 
@@ -648,7 +681,7 @@ Why:
 - One archive is harder to miss than dozens of CSV/XLSX/JSON files.
 - You can extract it locally into the repo's `outputs/` folder.
 
-## Step 17 - Stop Billing
+## Step 18 - Stop Billing
 
 Only after the archive is downloaded:
 
@@ -793,6 +826,7 @@ python scripts/llm_extract_rich_tickets.py "$RUN_DIR" \
 python scripts/build_user_wants_taxonomy.py "$RUN_DIR"
 python scripts/label_user_wants.py "$RUN_DIR" --model mistral-small3.2:24b
 python scripts/project_user_wants_full_corpus.py "$RUN_DIR"
+python scripts/build_longitudinal_insights.py "$RUN_DIR"
 
 tar -czf runpod_1400_results.tar.gz "$RUN_DIR"
 ls -lh runpod_1400_results.tar.gz
