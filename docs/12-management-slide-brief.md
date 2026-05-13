@@ -4,15 +4,25 @@ Use this file as source material for NotebookLM to generate a simple management
 deck.
 
 The key framing: **this is a different AI use case from user-facing chat**.
-This is an internal decision tool that reads existing support tickets and shows
-management what users repeatedly want, where trust is breaking, and which
-operational changes would reduce repeated escalation.
+This is an internal decision tool that reads the real support record managers
+already maintain and shows management what users repeatedly want, where trust
+is breaking, and which operational changes would reduce repeated escalation.
 
 ## One-Sentence Positioning
 
-We are not replacing direct support conversations. We are using the support
-tickets we already have to understand the repeated user wants behind them, so
-management can make faster, better operational decisions.
+We are not replacing direct support conversations. We are using the real
+support document managers already build every day to understand the repeated
+user wants behind it, so management can make faster, better operational
+decisions.
+
+## Framing Guardrail
+
+Do not describe the source as a cleanup problem in the presentation. The source
+is a living operational support record: managers write into it, add evidence,
+attach context, record IDs, and preserve the practical history of user cases.
+That is why the project is credible. RunPod, Ollama, Mistral, and the code do
+not make the evidence legitimate; they only help read the manager-created
+record at management scale.
 
 ## Scope Clarification
 
@@ -25,7 +35,7 @@ management can make faster, better operational decisions.
 ## What This Is
 
 - An internal management dashboard.
-- A way to turn messy support tickets into repeated user-want patterns.
+- A way to turn a living support record into repeated user-want patterns.
 - A way to see which issues affect trust, money, urgency, safety, and support load.
 - A way to identify which playbooks, escalation lanes, and product fixes should come first.
 - A private local analysis workflow using RunPod + Ollama/Mistral.
@@ -34,19 +44,21 @@ management can make faster, better operational decisions.
 
 - Support already talks to users directly, but management still needs to know what repeats across thousands of tickets.
 - Individual tickets show one problem; this analysis shows the pattern behind thousands of problems.
-- Without this, decisions are based on anecdotes, loud cases, or manually reading spreadsheets.
+- Without this, decisions are based on anecdotes, loud cases, or manually rereading a very large operational record.
 - With this, management can see repeated user wants, risk levels, and recommended operating changes.
 - The output is "show management what users keep asking for."
+- The source document is legitimate because managers manually add context, evidence, screenshots, IDs, and notes as work happens.
 
 ## Proof Points To Use
 
-- We analyzed `6,702` cleaned support tickets from the export.
-- The current local run deeply read `250` rich tickets with a local AI model and mapped all `6,702` cleaned tickets to the discovered wants.
-- The next RunPod run is designed to deeply read about `1,348` high-signal tickets for stronger evidence.
+- We analyzed `6,702` analysis-ready support records from the export.
+- The current local run deeply read `250` rich records with a local AI model and mapped all `6,702` analysis-ready records to the discovered wants.
+- The next RunPod run is designed to deeply read about `1,348` high-signal records for stronger evidence.
 - The system found `17` repeated user wants in the current sample.
 - The largest repeated wants are about account recovery, unban guidance, group visibility, scams/fraud, diamonds, SVIP access, and ban reason transparency.
 - The workflow produces auditable files: CSVs, Excel workbooks, Markdown findings, and dashboard pages.
 - Low-confidence mappings are not hidden; they go into a review queue.
+- The analysis is only possible because managers created the underlying operational record.
 
 ## Executive Message
 
@@ -67,12 +79,12 @@ support playbooks, better escalation lanes, and product/process fixes.
 
 **Title:** What Users Actually Want
 
-**Subtitle:** Turning messy support tickets into a management map of repeated user needs.
+**Subtitle:** Turning the living support record into a management map of repeated user needs.
 
 **On-slide bullets:**
 
 - Internal decision dashboard.
-- Built from existing support tickets.
+- Built from the real ticket record managers maintain every day.
 - Goal: identify repeated user wants, risks, and operational fixes.
 
 **Speaker note:**
@@ -90,12 +102,13 @@ conversations are repeatedly about.
 - One ticket tells us one user problem.
 - Thousands of tickets show repeated patterns.
 - Management needs the pattern, not only individual cases.
-- This analysis turns support history into decision evidence.
+- This analysis turns the support record into decision evidence.
 
 **Speaker note:**
 
-Support teams already see many cases every day. The gap is not conversation.
-The gap is pattern recognition across thousands of conversations.
+Support teams already see many cases every day and write down the operational
+context. The gap is not conversation. The gap is pattern recognition across
+thousands of documented conversations.
 
 ### Slide 3 - Scope: Different AI Use Case
 
@@ -125,20 +138,22 @@ listen to what users have already been saying across thousands of tickets.
 
 ### Slide 4 - Data Foundation
 
-**Title:** The analysis starts from real support data
+**Title:** The analysis starts from a real operational document
 
 **On-slide bullets:**
 
-- Source: exported support tickets.
-- Cleaned tickets: `6,702`.
-- Languages: mixed English, Russian, Chinese, and messy manager notes.
+- Source: exported support tickets manually maintained by managers.
+- Analysis-ready support records: `6,702`.
+- Languages: mixed English, Russian, Chinese, and manager-written operational notes.
 - Evidence detected: URLs, screenshots, timestamps, IDs, ban reasons, user claims, money terms.
+- This document is the foundation of the project; the GPU and code only help read it at scale.
 - Local workflow: no paid API calls required.
 
 **Speaker note:**
 
-The point is not to make an abstract AI demo. The point is to use the messy
-data we already have and make it readable for management.
+The point is not to make an abstract AI demo. The point is to respect the
+document managers already created and make its repeated patterns readable for
+management.
 
 ### Slide 5 - Method In Plain English
 
@@ -146,9 +161,9 @@ data we already have and make it readable for management.
 
 **On-slide flow:**
 
-1. Clean the raw export.
+1. Prepare the manager-maintained support record for analysis.
 2. Score tickets by evidence and context.
-3. Use local Mistral/Ollama to deeply read high-signal tickets.
+3. Use local Mistral/Ollama to deeply read high-signal records.
 4. Extract user want, emotion, risk, missing evidence, next step.
 5. Cluster repeated wants into a taxonomy.
 6. Map the full corpus to those wants with confidence bands.
@@ -192,8 +207,8 @@ different emotional states and different support needs.
 
 **Speaker note:**
 
-These numbers come from the current 250-ticket AI-read taxonomy projected
-across all cleaned tickets. After the 1,348-ticket RunPod extraction, the exact
+These numbers come from the current 250-record AI-read taxonomy projected
+across all analysis-ready support records. After the 1,348-record RunPod extraction, the exact
 counts may change, but the pattern is already clear: a small number of wants
 repeat many times.
 
@@ -223,7 +238,7 @@ priority because they affect trust, money, or platform fairness.
 - Separate recovery-user playbooks from reporting-user playbooks.
 - Create a fraud/diamond/dealer escalation lane.
 - Add evidence checklists for scam, harassment, and money cases.
-- Track repeated wants over time instead of reading raw exports manually.
+- Track repeated wants over time instead of asking managers to re-read the entire support record manually.
 
 **Speaker note:**
 
@@ -256,7 +271,7 @@ or policy decisions.
 - Executive briefing: decision ask, KPIs, top wants, risk landscape.
 - What users want: filterable taxonomy and ticket examples.
 - Browse tables: inspect any generated CSV.
-- Full-corpus mapping: see every cleaned ticket mapped to a want.
+- Full-corpus mapping: see every analysis-ready record mapped to a want.
 - Review queue: inspect uncertain or risky rows.
 
 **Speaker note:**
@@ -287,8 +302,8 @@ intents repeat. We should operationalize those repeated intents.
 
 **On-slide bullets:**
 
-- Current version: 250 AI-read rich tickets, projected to all 6,702 cleaned tickets.
-- Next stronger version: about 1,348 high-signal tickets deeply read by Mistral on RunPod.
+- Current version: 250 AI-read rich records, projected to all 6,702 analysis-ready support records.
+- Next stronger version: about 1,348 high-signal records deeply read by Mistral on RunPod.
 - Full projection will be rebuilt after the larger read.
 - Low-confidence tickets remain reviewable, not overclaimed.
 
@@ -301,7 +316,7 @@ the evidence stronger before final presentation.
 
 Ask NotebookLM or slide designer to create these:
 
-1. **Simple pipeline flow:** Raw tickets -> clean/score -> local AI read -> wants taxonomy -> full-corpus map -> dashboard.
+1. **Simple pipeline flow:** Manager-maintained support record -> prepare/score -> local AI read -> wants taxonomy -> full-corpus map -> dashboard.
 2. **Top wants bar chart:** show the top repeated wants by mapped ticket count.
 3. **Risk matrix:** volume on one axis, money/trust risk on another.
 4. **AI use-case comparison:** two columns, "user-facing chat" vs "internal support intelligence."
@@ -354,7 +369,7 @@ users repeatedly need.
 
 This is why the design has three layers:
 
-1. Local AI reads high-signal tickets directly.
+1. Local AI reads high-signal records directly.
 2. The system projects the full corpus with confidence bands.
 3. Low-confidence or risky rows are put into a review queue.
 
