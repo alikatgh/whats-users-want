@@ -540,6 +540,12 @@ explore = [
         url_path="explore_find_ticket",
     ),
     st.Page(
+        "pages/13_No_Ban_Mentions.py",
+        title="No-ban mentions",
+        icon=":material/gpp_maybe:",
+        url_path="explore_no_ban_mentions",
+    ),
+    st.Page(
         "pages/08_Browse_Data_Tables.py",
         title="Browse any data table",
         icon=":material/table_view:",
