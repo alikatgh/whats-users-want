@@ -103,6 +103,9 @@
     byId("auditMonth").addEventListener("change", renderAudit);
     byId("auditKeyword").addEventListener("input", debounce(renderAudit, 150));
     byId("downloadAudit").addEventListener("click", () => downloadRows("timeline_audit_rows.csv", rowsForExport(state.currentAuditRows)));
+    document.querySelectorAll("[data-audit-view]").forEach((btn) => {
+      btn.addEventListener("click", () => renderAuditView(btn.dataset.auditView));
+    });
     byId("timelineTop6").addEventListener("click", () => {
       seedTimelineSelection();
       renderTimeline();
@@ -113,7 +116,6 @@
     });
     byId("downloadNoBan").addEventListener("click", () => downloadRows("no_ban_mentions.csv", rowsForExport(state.currentNoBanRows)));
     byId("downloadJourneys").addEventListener("click", () => downloadRows("repeat_user_journeys.csv", rowsForExport(state.currentJourneyRows)));
-    byId("uidSearchButton").addEventListener("click", () => runUidSearch({ force: true }));
     byId("uidSearch").addEventListener("keydown", (event) => {
       if (event.key === "Enter") runUidSearch({ force: true });
     });
@@ -185,7 +187,78 @@
     renderNoBanTable();
     renderJourneys();
     bindReveals();
+    bindKpiActions();
     hydrateLookupFromUrl();
+  }
+
+  function navTo(section) {
+    const btn = document.querySelector(`.nav__item[data-section="${section}"]`);
+    if (btn) btn.click();
+  }
+  function ensureRevealOpen(id) {
+    const target = byId(id);
+    if (!target || !target.hidden) return;
+    const opener = document.querySelector(`[data-reveals="${id}"]`);
+    if (opener) opener.click();
+  }
+  function renderJourneyQueueFilter(filter) {
+    const rows = filter === "longrunning"
+      ? (state.currentJourneyRows || []).filter((row) => num(row.active_days) >= 90)
+      : (state.currentJourneyRows || []);
+    const queueTable = byId("journeyTable");
+    if (!queueTable) return;
+    const note = filter === "longrunning"
+      ? `<div class="queue-filter-note">Showing ${formatInt(rows.length)} long-running cases (90+ days). <button type="button" data-action="openJourneysQueue">See all</button></div>`
+      : "";
+    queueTable.innerHTML = note + tableHtml(rows.slice(0, 120), [
+      ["uid", "UID"],
+      ["records", "Records"],
+      ["active_days", "Active days"],
+      ["unique_wants", "Wants"],
+      ["failed_or_open_share", "Open/failed share"],
+      ["latest_want", "Latest want"],
+      ["top_wants", "Top wants", "text-cell"],
+      ["recommended_action", "Pattern note", "text-cell"]
+    ]);
+  }
+  const kpiActions = {
+    openTimeline: () => navTo("timeline"),
+    openMethod: () => navTo("method"),
+    openJourneysQueue: () => {
+      navTo("journeys");
+      requestAnimationFrame(() => {
+        renderJourneyQueueFilter("all");
+        ensureRevealOpen("queueBlock");
+      });
+    },
+    openJourneysLongRunning: () => {
+      navTo("journeys");
+      requestAnimationFrame(() => {
+        renderJourneyQueueFilter("longrunning");
+        ensureRevealOpen("queueBlock");
+      });
+    },
+    scrollToAudit: () => {
+      const el = byId("auditTable");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    scrollToNoBan: () => {
+      const el = byId("noBanTable");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+  let kpiActionsBound = false;
+  function bindKpiActions() {
+    if (kpiActionsBound) return;
+    kpiActionsBound = true;
+    document.addEventListener("click", (event) => {
+      const el = event.target.closest("[data-action]");
+      if (!el) return;
+      const fn = kpiActions[el.dataset.action];
+      if (!fn) return;
+      event.preventDefault();
+      fn();
+    });
   }
 
   const deferredRenderers = { trend: () => { renderWarnings(); resizeCharts(); } };
@@ -198,11 +271,14 @@
         const id = button.dataset.reveals;
         const target = byId(id);
         if (!target) return;
-        target.hidden = false;
-        target.setAttribute("aria-hidden", "false");
-        button.classList.add("is-shown");
         const icon = button.querySelector(".reveal-button__icon");
-        if (icon) icon.textContent = "✓";
+        const willOpen = target.hidden;
+        target.hidden = !willOpen;
+        target.setAttribute("aria-hidden", String(!willOpen));
+        button.classList.toggle("is-shown", willOpen);
+        button.setAttribute("aria-expanded", String(willOpen));
+        if (icon) icon.textContent = willOpen ? "✓" : "+";
+        if (!willOpen) return;
         const renderKey = button.dataset.render;
         if (renderKey && !renderedDeferred.has(renderKey) && deferredRenderers[renderKey]) {
           renderedDeferred.add(renderKey);
@@ -260,22 +336,30 @@
       {
         label: "What users keep asking for",
         value: topWant?.title || "-",
-        detail: `${formatInt(topWant?.estimated || 0)} mapped records across ${formatInt(topWant?.clusters || 0)} discovered cluster${topWant?.clusters === 1 ? "" : "s"}.`
+        detail: `${formatInt(topWant?.estimated || 0)} mapped records across ${formatInt(topWant?.clusters || 0)} discovered cluster${topWant?.clusters === 1 ? "" : "s"}.`,
+        action: "openTimeline",
+        openLabel: "See the trend"
       },
       {
         label: "Where demand is growing",
         value: momentumValue,
-        detail: momentumDetail
+        detail: momentumDetail,
+        action: "openTimeline",
+        openLabel: "See the trend"
       },
       {
         label: "Users coming back",
         value: formatInt(longitudinal.repeat_users || state.data.journeys.length),
-        detail: "UIDs with more than one support record. Open one to read the full trail."
+        detail: "UIDs with more than one support record. Open one to read the full trail.",
+        action: "openJourneysQueue",
+        openLabel: "Open priority queue"
       },
       {
         label: "Records analyzed",
         value: `${formatInt(longitudinal.records || state.data.assignments.length)} rows`,
-        detail: `${formatInt(projection.llm_confirmed_rows || confirmedRows())} read by AI · ${formatInt(projection.projected_rows || 0)} mapped by embeddings.`
+        detail: `${formatInt(projection.llm_confirmed_rows || confirmedRows())} read by AI · ${formatInt(projection.projected_rows || 0)} mapped by embeddings.`,
+        action: "openMethod",
+        openLabel: "How counted"
       }
     ];
     const evidenceTarget = byId("executiveEvidence") || byId("kpiGrid");
@@ -292,10 +376,10 @@
     const noBanKpis = byId("noBanKpis");
     if (noBanKpis) {
       noBanKpis.innerHTML = [
-        ["No-ban records", formatInt(state.noBanRows.length), "Matches no-ban / no ban / no_ban"],
-        ["Top no-ban want", escapeHtml(topNoBan?.key || "None"), `${formatInt(topNoBan?.value || 0)} records`],
+        ["No-ban records", formatInt(state.noBanRows.length), "Matches no-ban / no ban / no_ban", "scrollToNoBan", "See rows"],
+        ["Top no-ban want", escapeHtml(topNoBan?.key || "None"), `${formatInt(topNoBan?.value || 0)} records`, "scrollToNoBan", "See rows"],
         ["Complete months", formatInt(months.length), `${months[0] || "-"} to ${months.at(-1) || "-"}`],
-        ["Largest want", escapeHtml(topWant?.want_title || "-"), `${formatInt(topWant?.estimated_tickets || 0)} mapped records`]
+        ["Largest want", escapeHtml(topWant?.want_title || "-"), `${formatInt(topWant?.estimated_tickets || 0)} mapped records`, "scrollToNoBan", "See rows"]
       ].map(kpiHtml).join("");
     }
   }
@@ -446,6 +530,8 @@
   function renderLookup() {
     document.body.classList.remove("has-uid-result");
     byId("uidLookupResult").innerHTML = "";
+    const summaryEl = byId("uidLookupSummary");
+    if (summaryEl) summaryEl.innerHTML = "";
   }
 
   function runUidSearch({ force = false } = {}) {
@@ -464,6 +550,8 @@
       clearUidUrl();
       document.body.classList.remove("has-uid-result");
       byId("uidLookupResult").innerHTML = `<div class="lookup-empty"><h2>Keep typing the UID.</h2><p>Use at least four digits for partial matching.</p></div>`;
+      const summaryEl = byId("uidLookupSummary");
+      if (summaryEl) summaryEl.innerHTML = "";
       return;
     }
     const exact = state.uidIndex.has(query);
@@ -476,6 +564,8 @@
       clearUidUrl();
       document.body.classList.remove("has-uid-result");
       byId("uidLookupResult").innerHTML = `<div class="lookup-empty"><h2>No UID match found.</h2><p>Check the digits, or search a longer fragment from the screenshot/export.</p></div>`;
+      const summaryEl = byId("uidLookupSummary");
+      if (summaryEl) summaryEl.innerHTML = "";
       return;
     }
     wrap.hidden = exact || matches.length <= 1;
@@ -537,114 +627,189 @@
       : "No no-ban mention found in this UID trail.";
     document.body.classList.add("has-uid-result");
     updateUidUrl(uid);
+    const summaryEl = byId("uidLookupSummary");
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <span class="lookup-strip__uid">${escapeHtml(uid)}</span>
+        <span class="lookup-strip__sep" aria-hidden="true">·</span>
+        <span class="lookup-strip__meta">${formatInt(rows.length)} record${rows.length === 1 ? "" : "s"}</span>
+        <span class="lookup-strip__sep" aria-hidden="true">·</span>
+        <span class="lookup-strip__meta">${escapeHtml(dateRange)}</span>
+        <span class="lookup-strip__sep" aria-hidden="true">·</span>
+        <span class="lookup-strip__meta">${escapeHtml(latestWant)}</span>
+        <span class="lookup-strip__sep" aria-hidden="true">·</span>
+        <span class="lookup-strip__status">${escapeHtml(latestStatus)}</span>
+        <button class="button button--subtle lookup-strip__download" id="downloadUidRows" type="button">Download</button>`;
+    }
     byId("uidLookupResult").innerHTML = `
-      <section class="uid-answer">
-        <div>
-          <div class="panel__label">Case found</div>
-          <h2>${escapeHtml(uid)}</h2>
-          <p>
-            ${formatInt(rows.length)} support record${rows.length === 1 ? "" : "s"} from ${escapeHtml(dateRange)}.
-            Latest mapped want: <span>${escapeHtml(latestWant)}</span>. Latest status: <span>${escapeHtml(latestStatus)}</span>.
-          </p>
-        </div>
-        <button class="button" id="downloadUidRows" type="button">Download UID rows</button>
-      </section>
-
       <section class="panel panel--uid-timeline">
-        <div class="panel__header">
-          <div>
-            <div class="panel__label">Full support trail</div>
-            <h2>Follow the full user story</h2>
+        <div class="uid-timeline-bar">
+          <span class="uid-timeline-bar__label">Trail · ${formatInt(rows.length)} records, oldest to newest</span>
+          <div class="uid-timeline-toolbar" role="tablist" aria-label="Timeline orientation">
+            <button class="uid-mode-button is-active" type="button" data-uid-mode="vertical" aria-pressed="true">
+              <span class="uid-mode-button__icon" aria-hidden="true">↕</span>
+              <span>Vertical</span>
+            </button>
+            <button class="uid-mode-button" type="button" data-uid-mode="horizontal" aria-pressed="false">
+              <span class="uid-mode-button__icon" aria-hidden="true">↔</span>
+              <span>Horizontal</span>
+            </button>
           </div>
-          <p>Showing all ${formatInt(rows.length)} records in chronological order. The final step is the current record.</p>
         </div>
-        <div class="uid-timeline">${uidTimelineHtml(rows)}</div>
+        <div class="uid-timeline uid-timeline--vertical" id="uidTimelineRail">${uidTimelineHtml(rows)}</div>
       </section>
 
-      <div class="uid-details">
-        <details open>
-          <summary>Case summary</summary>
-          <div class="uid-summary-strip">
-            <button class="uid-summary-card" type="button" data-uid-open="rows">
-              <span>Records</span><strong>${formatInt(rows.length)}</strong><small>Open row audit</small>
-            </button>
-            <button class="uid-summary-card" type="button" data-uid-open="wants">
-              <span>Distinct wants</span><strong>${formatInt(wants.length)}</strong><small>Open want list</small>
-            </button>
-            <button class="uid-summary-card" type="button" data-uid-open="categories">
-              <span>Categories</span><strong>${formatInt(categories.length)}</strong><small>Open category list</small>
-            </button>
-            <button class="uid-summary-card" type="button" data-uid-open="noban">
-              <span>No-ban</span><strong>${formatInt(noBanCount)}</strong><small>Open evidence</small>
-            </button>
-          </div>
-          <dl class="uid-facts">
-            <div><dt>First seen</dt><dd><button class="uid-inline-link" type="button" data-uid-open="timeline">${escapeHtml(firstDate)}</button></dd></div>
-            <div><dt>Latest record</dt><dd><button class="uid-inline-link" type="button" data-uid-open="timeline">${escapeHtml(latestDate)}</button></dd></div>
-            <div><dt>Open or failed records</dt><dd><button class="uid-inline-link" type="button" data-uid-open="open">${formatInt(openFailed)}</button></dd></div>
-            <div><dt>Evidence note</dt><dd>${escapeHtml(noBanLine)}</dd></div>
-          </dl>
-          <div class="uid-action">
-            <span>Recommended read</span>
-            <p>${escapeHtml(journey?.recommended_action || "Review the dated records before treating this as a new isolated ticket.")}</p>
-          </div>
-        </details>
+      <div class="uid-detail-layout">
+        <nav class="uid-detail-nav" aria-label="Case sections">
+          <button class="uid-detail-nav__item is-active" type="button" data-uid-section="summary">
+            <span class="uid-detail-nav__title">Case summary</span>
+            <span class="uid-detail-nav__hint">Overview</span>
+          </button>
+          <button class="uid-detail-nav__item" type="button" data-uid-section="wants">
+            <span class="uid-detail-nav__title">Repeated wants</span>
+            <span class="uid-detail-nav__hint">${formatInt(wants.length)}</span>
+          </button>
+          <button class="uid-detail-nav__item" type="button" data-uid-section="categories">
+            <span class="uid-detail-nav__title">Categories</span>
+            <span class="uid-detail-nav__hint">${formatInt(categories.length)}</span>
+          </button>
+          <button class="uid-detail-nav__item" type="button" data-uid-section="open">
+            <span class="uid-detail-nav__title">Open or failed</span>
+            <span class="uid-detail-nav__hint">${formatInt(openFailed)}</span>
+          </button>
+          <button class="uid-detail-nav__item" type="button" data-uid-section="noban">
+            <span class="uid-detail-nav__title">No-ban</span>
+            <span class="uid-detail-nav__hint">${formatInt(noBanCount)}</span>
+          </button>
+          <button class="uid-detail-nav__item" type="button" data-uid-section="rows">
+            <span class="uid-detail-nav__title">All rows</span>
+            <span class="uid-detail-nav__hint">${formatInt(rows.length)}</span>
+          </button>
+          <button class="uid-detail-nav__item" type="button" data-uid-section="filtered" hidden>
+            <span class="uid-detail-nav__title">Selected rows</span>
+            <span class="uid-detail-nav__hint">—</span>
+          </button>
+        </nav>
+        <div class="uid-detail-content">
+          <section class="uid-detail-section is-active" data-uid-section-content="summary">
+            <div class="uid-summary-strip">
+              <button class="uid-summary-card" type="button" data-uid-open="rows">
+                <span>Records</span><strong>${formatInt(rows.length)}</strong><small>Open row audit</small>
+              </button>
+              <button class="uid-summary-card" type="button" data-uid-open="wants">
+                <span>Distinct wants</span><strong>${formatInt(wants.length)}</strong><small>Open want list</small>
+              </button>
+              <button class="uid-summary-card" type="button" data-uid-open="categories">
+                <span>Categories</span><strong>${formatInt(categories.length)}</strong><small>Open category list</small>
+              </button>
+              <button class="uid-summary-card" type="button" data-uid-open="noban">
+                <span>No-ban</span><strong>${formatInt(noBanCount)}</strong><small>Open evidence</small>
+              </button>
+            </div>
+            <dl class="uid-facts">
+              <div><dt>First seen</dt><dd><button class="uid-inline-link" type="button" data-uid-open="timeline">${escapeHtml(firstDate)}</button></dd></div>
+              <div><dt>Latest record</dt><dd><button class="uid-inline-link" type="button" data-uid-open="timeline">${escapeHtml(latestDate)}</button></dd></div>
+              <div><dt>Open or failed records</dt><dd><button class="uid-inline-link" type="button" data-uid-open="open">${formatInt(openFailed)}</button></dd></div>
+              <div><dt>Evidence note</dt><dd>${escapeHtml(noBanLine)}</dd></div>
+            </dl>
+            <div class="uid-action">
+              <span>What we see</span>
+              <p>${escapeHtml(journey?.recommended_action || "Multiple records on file.")}</p>
+            </div>
+          </section>
 
-        <details id="uidWantsPanel">
-          <summary>Repeated wants</summary>
-          <div class="uid-want-list">${wantListHtml(rows)}</div>
-        </details>
+          <section class="uid-detail-section" id="uidWantsPanel" data-uid-section-content="wants" hidden>
+            <h3 class="uid-detail-section__head">Repeated wants</h3>
+            <div class="uid-want-list">${wantListHtml(rows)}</div>
+          </section>
 
-        <details id="uidCategoriesPanel">
-          <summary>Categories touched</summary>
-          <div class="uid-want-list">${categoryListHtml(rows)}</div>
-        </details>
+          <section class="uid-detail-section" id="uidCategoriesPanel" data-uid-section-content="categories" hidden>
+            <h3 class="uid-detail-section__head">Categories touched</h3>
+            <div class="uid-want-list">${categoryListHtml(rows)}</div>
+          </section>
 
-        <details id="uidFilteredPanel" hidden>
-          <summary>Selected rows</summary>
-          <div id="uidFilteredContent"></div>
-        </details>
+          <section class="uid-detail-section" id="uidFilteredPanel" data-uid-section-content="filtered" hidden>
+            <h3 class="uid-detail-section__head">Selected rows</h3>
+            <div id="uidFilteredContent"></div>
+          </section>
 
-        <details id="uidOpenPanel">
-          <summary>Open or failed records</summary>
-          <div class="table-wrap">${tableHtml(openFailedRows, [
-            ["source_row", "Row"],
-            ["date_raw", "Date"],
-            ["category", "Category"],
-            ["status_en", "Status"],
-            ["display_want", "Mapped want"],
-            ["question_flat", "Support text", "text-cell"]
-          ])}</div>
-        </details>
+          <section class="uid-detail-section" id="uidOpenPanel" data-uid-section-content="open" hidden>
+            <h3 class="uid-detail-section__head">Open or failed records</h3>
+            <div class="table-wrap">${tableHtml(openFailedRows, [
+              ["source_row", "Row"],
+              ["date_raw", "Date"],
+              ["category", "Category"],
+              ["status_en", "Status"],
+              ["display_want", "Mapped want"],
+              ["question_flat", "Support text", "text-cell"]
+            ])}</div>
+          </section>
 
-        <details id="uidNoBanPanel">
-          <summary>No-ban evidence</summary>
-          <div class="table-wrap">${tableHtml(noBanRows, [
-            ["source_row", "Row"],
-            ["date_raw", "Date"],
-            ["category", "Category"],
-            ["status_en", "Status"],
-            ["display_want", "Mapped want"],
-            ["question_flat", "No-ban context", "text-cell"]
-          ])}</div>
-        </details>
+          <section class="uid-detail-section" id="uidNoBanPanel" data-uid-section-content="noban" hidden>
+            <h3 class="uid-detail-section__head">No-ban evidence</h3>
+            <div class="table-wrap">${tableHtml(noBanRows, [
+              ["source_row", "Row"],
+              ["date_raw", "Date"],
+              ["category", "Category"],
+              ["status_en", "Status"],
+              ["display_want", "Mapped want"],
+              ["question_flat", "No-ban context", "text-cell"]
+            ])}</div>
+          </section>
 
-        <details id="uidRowsPanel">
-          <summary>All rows for audit</summary>
-          <div class="table-wrap">${tableHtml(rows, [
-            ["source_row", "Row"],
-            ["date_raw", "Date"],
-            ["uid", "UID"],
-            ["category", "Category"],
-            ["status_en", "Status"],
-            ["display_want", "Mapped want"],
-            ["assignment_confidence", "Confidence"],
-            ["question_flat", "Support text", "text-cell"]
-          ])}</div>
-        </details>
+          <section class="uid-detail-section" id="uidRowsPanel" data-uid-section-content="rows" hidden>
+            <h3 class="uid-detail-section__head">All rows for audit</h3>
+            <div class="table-wrap">${tableHtml(rows, [
+              ["source_row", "Row"],
+              ["date_raw", "Date"],
+              ["uid", "UID"],
+              ["category", "Category"],
+              ["status_en", "Status"],
+              ["display_want", "Mapped want"],
+              ["assignment_confidence", "Confidence"],
+              ["question_flat", "Support text", "text-cell"]
+            ])}</div>
+          </section>
+        </div>
       </div>`;
     byId("downloadUidRows").addEventListener("click", () => downloadRows(`uid_${uid}_support_trail.csv`, rowsForExport(state.currentLookupRows)));
     bindUidOpenButtons();
+    bindUidTimelineModes();
+  }
+
+  function bindUidTimelineModes() {
+    const rail = byId("uidTimelineRail");
+    if (!rail) return;
+    const syncRailWidth = () => {
+      if (rail.classList.contains("uid-timeline--horizontal")) {
+        rail.style.setProperty("--rail-content-width", `${rail.scrollWidth}px`);
+      }
+    };
+    document.querySelectorAll(".uid-mode-button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const mode = btn.dataset.uidMode;
+        rail.classList.remove("uid-timeline--vertical", "uid-timeline--horizontal");
+        rail.classList.add(`uid-timeline--${mode}`);
+        document.querySelectorAll(".uid-mode-button").forEach((other) => {
+          const active = other === btn;
+          other.classList.toggle("is-active", active);
+          other.setAttribute("aria-pressed", String(active));
+        });
+        if (mode === "horizontal") {
+          rail.scrollLeft = 0;
+          requestAnimationFrame(syncRailWidth);
+        }
+      });
+    });
+    if (!window.__uidRailResizeBound) {
+      window.__uidRailResizeBound = true;
+      window.addEventListener("resize", debounce(() => {
+        const r = byId("uidTimelineRail");
+        if (r && r.classList.contains("uid-timeline--horizontal")) {
+          r.style.setProperty("--rail-content-width", `${r.scrollWidth}px`);
+        }
+      }, 150));
+    }
   }
 
   function hydrateLookupFromUrl() {
@@ -694,6 +859,21 @@
     document.querySelectorAll("[data-uid-filter]").forEach((button) => {
       button.addEventListener("click", () => openUidFilteredRows(button.dataset.uidFilter, button.dataset.uidFilterValue));
     });
+    document.querySelectorAll("[data-uid-section]").forEach((button) => {
+      button.addEventListener("click", () => selectUidSection(button.dataset.uidSection));
+    });
+  }
+
+  function selectUidSection(key) {
+    if (!key) return;
+    document.querySelectorAll("[data-uid-section-content]").forEach((section) => {
+      const match = section.dataset.uidSectionContent === key;
+      section.hidden = !match;
+      section.classList.toggle("is-active", match);
+    });
+    document.querySelectorAll("[data-uid-section]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.uidSection === key);
+    });
   }
 
   function openUidFilteredRows(type, value) {
@@ -705,11 +885,8 @@
         : (row.want_title || row.display_want || "Unknown");
       return rowValue === value;
     });
-    const panel = byId("uidFilteredPanel");
     const content = byId("uidFilteredContent");
-    if (!panel || !content) return;
-    panel.hidden = false;
-    panel.open = true;
+    if (!content) return;
     content.innerHTML = `
       <div class="uid-filtered-head">
         <div>
@@ -727,26 +904,28 @@
         ["display_want", "Mapped want"],
         ["question_flat", "Support text", "text-cell"]
       ])}</div>`;
-    panel.scrollIntoView({ behavior: "smooth", block: "start" });
-    panel.classList.add("is-highlighted");
-    window.setTimeout(() => panel.classList.remove("is-highlighted"), 900);
+    const navButton = document.querySelector('[data-uid-section="filtered"]');
+    if (navButton) {
+      navButton.hidden = false;
+      const hint = navButton.querySelector(".uid-detail-nav__hint");
+      if (hint) hint.textContent = formatInt(filtered.length);
+    }
+    selectUidSection("filtered");
   }
 
   function openUidEvidence(target) {
-    const section = target === "timeline"
-      ? document.querySelector(".panel--uid-timeline")
-      : byId({
-        rows: "uidRowsPanel",
-        wants: "uidWantsPanel",
-        categories: "uidCategoriesPanel",
-        noban: "uidNoBanPanel",
-        open: "uidOpenPanel"
-      }[target]);
-    if (!section) return;
-    if (section.tagName === "DETAILS") section.open = true;
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
-    section.classList.add("is-highlighted");
-    window.setTimeout(() => section.classList.remove("is-highlighted"), 900);
+    if (target === "timeline") {
+      const timeline = document.querySelector(".panel--uid-timeline");
+      if (timeline) {
+        timeline.scrollIntoView({ behavior: "smooth", block: "start" });
+        timeline.classList.add("is-highlighted");
+        window.setTimeout(() => timeline.classList.remove("is-highlighted"), 900);
+      }
+      return;
+    }
+    selectUidSection(target);
+    const layout = document.querySelector(".uid-detail-layout");
+    if (layout) layout.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function uidTimelineHtml(rows) {
@@ -1017,6 +1196,50 @@
     setOptions(byId("auditMonth"), months, (x) => x, byId("auditMonth").value || months.at(-1));
   }
 
+  const AUDIT_ROW_COLUMNS = [
+    ["source_row", "Row"],
+    ["date_raw", "Date"],
+    ["uid", "UID"],
+    ["category", "Category"],
+    ["status_en", "Status"],
+    ["display_want", "Want"],
+    ["assignment_confidence", "Confidence"],
+    ["question_flat", "Support text", "text-cell"]
+  ];
+  const AUDIT_USER_COLUMNS = [
+    ["uid", "UID"],
+    ["records", "Records"],
+    ["latest_date", "Latest date"],
+    ["latest_want", "Latest want"],
+    ["latest_status", "Latest status"]
+  ];
+
+  function aggregateUniqueUsers(rows) {
+    const map = new Map();
+    for (const r of rows) {
+      const uid = r.uid;
+      if (!validUid(uid)) continue;
+      const cur = map.get(uid);
+      if (!cur) {
+        map.set(uid, {
+          uid,
+          records: 1,
+          latest_date: r.date_raw || "",
+          latest_want: r.want_title || r.display_want || "",
+          latest_status: r.status_en || ""
+        });
+      } else {
+        cur.records += 1;
+        if ((r.date_raw || "") > cur.latest_date) {
+          cur.latest_date = r.date_raw || "";
+          cur.latest_want = r.want_title || r.display_want || "";
+          cur.latest_status = r.status_en || "";
+        }
+      }
+    }
+    return [...map.values()].sort((a, b) => b.records - a.records);
+  }
+
   function renderAudit() {
     const want = byId("auditWant").value;
     const month = byId("auditMonth").value;
@@ -1030,23 +1253,51 @@
       ? state.data.assignments.filter((row) => row.month_from_date === month && (row.question_flat || "").toLowerCase().includes(keyword.toLowerCase()))
       : [];
     const allTimeRows = state.data.assignments.filter((row) => (combine ? row.want_title : row.display_want) === want);
+    const uniqueUsers = aggregateUniqueUsers(rows);
     state.currentAuditRows = rows;
-    byId("auditKpis").innerHTML = [
-      ["Semantic count", formatInt(rows.length), `${escapeHtml(want)} in ${escapeHtml(month)}`],
-      ["All-time semantic count", formatInt(allTimeRows.length), "Same semantic want across all months"],
-      [`Keyword "${keyword || "-"}"`, formatInt(keywordRows.length), "Literal text matches in selected month"],
-      ["Unique users", formatInt(unique(rows.map((row) => row.uid).filter(validUid)).length), "UIDs in audited rows"]
-    ].map(kpiHtml).join("");
-    byId("auditTable").innerHTML = tableHtml(rows.slice(0, 100), [
-      ["source_row", "Row"],
-      ["date_raw", "Date"],
-      ["uid", "UID"],
-      ["category", "Category"],
-      ["status_en", "Status"],
-      ["display_want", "Want"],
-      ["assignment_confidence", "Confidence"],
-      ["question_flat", "Support text", "text-cell"]
-    ]);
+    state.auditViews = {
+      semantic: {
+        rows,
+        columns: AUDIT_ROW_COLUMNS,
+        caption: `${formatInt(rows.length)} records · ${escapeHtml(want)} in ${escapeHtml(month)}`
+      },
+      alltime: {
+        rows: allTimeRows,
+        columns: AUDIT_ROW_COLUMNS,
+        caption: `${formatInt(allTimeRows.length)} records · ${escapeHtml(want)} across all months`
+      },
+      keyword: {
+        rows: keywordRows,
+        columns: AUDIT_ROW_COLUMNS,
+        caption: keyword
+          ? `${formatInt(keywordRows.length)} records contain "${escapeHtml(keyword)}" in ${escapeHtml(month)}`
+          : `Type a keyword above to filter literal text matches in ${escapeHtml(month)}.`
+      },
+      unique: {
+        rows: uniqueUsers,
+        columns: AUDIT_USER_COLUMNS,
+        caption: `${formatInt(uniqueUsers.length)} unique UIDs in ${escapeHtml(want)} · ${escapeHtml(month)}`
+      }
+    };
+    const setNavValue = (id, value) => { const el = byId(id); if (el) el.textContent = formatInt(value); };
+    setNavValue("auditSemanticCount", rows.length);
+    setNavValue("auditAlltimeCount", allTimeRows.length);
+    setNavValue("auditKeywordCount", keywordRows.length);
+    setNavValue("auditUniqueCount", uniqueUsers.length);
+    if (!state.auditView) state.auditView = "semantic";
+    renderAuditView(state.auditView);
+  }
+
+  function renderAuditView(view) {
+    state.auditView = view;
+    const config = (state.auditViews || {})[view];
+    if (!config) return;
+    const caption = byId("auditCaption");
+    if (caption) caption.innerHTML = config.caption;
+    byId("auditTable").innerHTML = tableHtml(config.rows.slice(0, 200), config.columns);
+    document.querySelectorAll("[data-audit-view]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.auditView === view);
+    });
   }
 
   function setupNoBanFilters() {
@@ -1083,10 +1334,10 @@
     const journeys = [...state.data.journeys].filter((row) => validUid(row.uid)).sort((a, b) => num(b.severity_score) - num(a.severity_score));
     const totalJourneyRecords = journeys.reduce((sum, row) => sum + num(row.records), 0);
     byId("journeyKpis").innerHTML = [
-      ["Repeat users", formatInt(journeys.length), "UIDs with more than one record"],
-      ["Records in journeys", formatInt(totalJourneyRecords), "Support records tied to repeat users"],
-      ["Median active days", formatInt(median(journeys.map((row) => num(row.active_days)))), "Typical span from first to latest record"],
-      ["Long-running cases", formatInt(journeys.filter((row) => num(row.active_days) >= 90).length), "UIDs active for 90+ days"]
+      ["Repeat users", formatInt(journeys.length), "UIDs with more than one record", "openJourneysQueue", "Open queue"],
+      ["Records in journeys", formatInt(totalJourneyRecords), "Support records tied to repeat users", "openJourneysQueue", "Open queue"],
+      ["Median active days", formatInt(median(journeys.map((row) => num(row.active_days)))), "Typical span from first to latest record", "openJourneysQueue", "Open queue"],
+      ["Long-running cases", formatInt(journeys.filter((row) => num(row.active_days) >= 90).length), "UIDs active for 90+ days", "openJourneysLongRunning", "See long-running"]
     ].map(kpiHtml).join("");
 
     const archetypes = [...state.data.archetypes].sort((a, b) => num(b.users) - num(a.users));
@@ -1110,7 +1361,7 @@
               </button>
               <div class="archetype-rank__detail" hidden>
                 <div class="archetype-rank__meta">${formatInt(row.records)} records · median ${formatFloat(row.median_records_per_user, 1)} per user</div>
-                <p>${escapeHtml(row.recommended_action || "")}</p>
+                ${row.recommended_action ? `<p class="archetype-rank__note">${escapeHtml(row.recommended_action)}</p>` : ""}
               </div>
             </li>`;
         }).join("")}
@@ -1133,7 +1384,7 @@
       ["failed_or_open_share", "Open/failed share"],
       ["latest_want", "Latest want"],
       ["top_wants", "Top wants", "text-cell"],
-      ["recommended_action", "Recommended action", "text-cell"]
+      ["recommended_action", "Pattern note", "text-cell"]
     ]);
     setOptions(byId("journeyUid"), journeys.slice(0, 220).map((row) => row.uid), (uid) => uid, byId("journeyUid").value || journeys[0]?.uid);
     renderJourneyDetail();
@@ -1156,8 +1407,8 @@
           <span>${formatPct(num(journey.failed_or_open_share || 0))} open/failed</span>
         </div>
         <div class="journey-summary__action">
-          <span>Recommended action</span>
-          <p>${escapeHtml(journey.recommended_action || "Review full history before replying.")}</p>
+          <span>What we see</span>
+          <p>${escapeHtml(journey.recommended_action || "Multiple records on file.")}</p>
         </div>
         <div class="journey-summary__path">
           <span>Latest want</span>
@@ -1196,22 +1447,40 @@
     return escapeHtml(String(value));
   }
 
-  function kpiHtml([label, value, sub]) {
+  function kpiHtml([label, value, sub, action, openLabel]) {
+    if (!action) {
+      return `
+        <div class="kpi">
+          <div class="kpi__label">${escapeHtml(label)}</div>
+          <div class="kpi__value">${value}</div>
+          <div class="kpi__sub">${sub}</div>
+        </div>`;
+    }
     return `
-      <div class="kpi">
+      <button class="kpi kpi--clickable" type="button" data-action="${escapeAttr(action)}">
         <div class="kpi__label">${escapeHtml(label)}</div>
         <div class="kpi__value">${value}</div>
         <div class="kpi__sub">${sub}</div>
-      </div>`;
+        <div class="kpi__open">${escapeHtml(openLabel || "Open")}<span aria-hidden="true">↗</span></div>
+      </button>`;
   }
 
   function proofCardHtml(card) {
+    if (!card.action) {
+      return `
+        <article class="proof-card">
+          <div class="proof-card__label">${escapeHtml(card.label)}</div>
+          <div class="proof-card__value">${escapeHtml(card.value)}</div>
+          <p>${escapeHtml(card.detail)}</p>
+        </article>`;
+    }
     return `
-      <article class="proof-card">
+      <button class="proof-card proof-card--clickable" type="button" data-action="${escapeAttr(card.action)}">
         <div class="proof-card__label">${escapeHtml(card.label)}</div>
         <div class="proof-card__value">${escapeHtml(card.value)}</div>
         <p>${escapeHtml(card.detail)}</p>
-      </article>`;
+        <div class="proof-card__open">${escapeHtml(card.openLabel || "Open")}<span aria-hidden="true">↗</span></div>
+      </button>`;
   }
 
   function summarizeWantsByTitle(rows) {

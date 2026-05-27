@@ -40,36 +40,30 @@
         <span class="topbar__dots" aria-hidden="true">⋮</span>
       </div>
       <section id="lookup" class="view is-active">
-        <section class="lookup-home">
-          <div class="lookup-home__mark">WU</div>
-          <h1>Search by UID</h1>
-          <p>Open one user’s support history before reading the dashboard.</p>
+        <div class="lookup-bar">
           <div class="uid-search-card" role="search">
             <label class="sr-only" for="uidSearch">UID search</label>
             <div class="uid-search-row">
               <input id="uidSearch" inputmode="numeric" autocomplete="off" placeholder="Paste UID">
-              <button class="button" id="uidSearchButton" type="button">Search</button>
             </div>
             <label class="uid-match-wrap" id="uidMatchWrap" hidden>
               Matching UIDs
               <select id="uidMatchSelect"></select>
             </label>
           </div>
-          <p class="lookup-home__hint">Exact UID is best. A partial UID works when you only have a copied fragment.</p>
-          <button class="lookup-home__link" data-open-section="briefing" type="button">Open the dashboard instead</button>
-        </section>
+          <div id="uidLookupSummary" class="lookup-strip" aria-live="polite"></div>
+        </div>
         <div id="uidLookupResult" class="lookup-result"></div>
       </section>
 
       <section id="briefing" class="view">
         <section class="hero">
           <div>
-            <div class="kicker">Support record -> semantic operating map</div>
-            <h1>What users actually want</h1>
+            <div class="kicker">Executive readout</div>
+            <h1>What users want</h1>
             <p>
-              The support record is not just a ticket count. It shows the one
-              thing users keep asking for, how that demand is moving, and the
-              shortest fix that would close the loop.
+              What users keep asking for, how that demand is moving, and where
+              to focus.
             </p>
           </div>
           <div class="hero__meta">
@@ -83,8 +77,7 @@
           <h2>Most users come back for one thing: getting their account back.</h2>
           <p>
             The same need shows up under account, ban, group, room, and
-            explanation tickets. Reading them as one story makes the next
-            move obvious.
+            explanation tickets — different queues, one user goal.
           </p>
           <div class="headline-stat">
             <strong id="headlineStatValue">—</strong>
@@ -121,7 +114,7 @@
           <header class="reveal-block__head">
             <div>
               <div class="panel__label">What should we do</div>
-              <h2>Three operating moves</h2>
+              <h2>Three things to do</h2>
             </div>
             <button class="reveal-close" data-hides="actionsBlock" type="button" aria-label="Hide actions">Hide</button>
           </header>
@@ -165,17 +158,6 @@
           <div id="warningBars" class="forecast-stack"></div>
         </section>
 
-        <details class="method-note">
-          <summary>
-            <span class="panel__label">Why this is different from a sheet filter</span>
-            <span class="method-note__title">The count is semantic, then auditable.</span>
-          </summary>
-          <p>
-            A keyword search finds exact words. This readout groups the same user
-            goal across wording, languages, categories, IDs, screenshots, and
-            support notes. Every number can still be opened back to rows.
-          </p>
-        </details>
       </section>
 
       <section id="timeline" class="view">
@@ -190,35 +172,53 @@
           </div>
         </div>
         <div class="panel">
-          <div class="panel__toolbar">
-            <span class="small-note">Shown wants</span>
-            <button class="button button--subtle" id="timelineTop6" type="button">Top 5</button>
-            <button class="button button--subtle" id="timelineClear" type="button">Clear</button>
-          </div>
-          <div class="forecast-copy forecast-copy--compact">
-            <span>Solid line: observed records.</span>
-            <span>Dashed tail: projected next month where available.</span>
+          <div id="timelineChart" class="chart"></div>
+          <div id="timelineLegend" class="legend"></div>
+          <div class="timeline-toolbar">
+            <div class="timeline-toolbar__group">
+              <span class="small-note">Shown wants</span>
+              <button class="button button--subtle" id="timelineTop6" type="button">Top 5</button>
+              <button class="button button--subtle" id="timelineClear" type="button">Clear</button>
+            </div>
+            <div class="timeline-toolbar__legend">
+              <span><span class="legend-swatch"></span> observed</span>
+              <span><span class="legend-swatch legend-swatch--dashed"></span> projected next month</span>
+            </div>
           </div>
           <div id="timelineReadout" class="timeline-readout" aria-live="polite"></div>
           <div class="select-grid" id="timelineChoices"></div>
-          <div id="timelineChart" class="chart"></div>
-          <div id="timelineLegend" class="legend"></div>
         </div>
         <div class="panel panel--audit">
-          <div class="section-head section-head--tight">
-            <div>
-              <div class="kicker">Reproducibility</div>
-              <h2>Audit one timeline number</h2>
-            </div>
-          </div>
           <div class="audit-controls">
             <label>Want line <select id="auditWant"></select></label>
             <label>Month <select id="auditMonth"></select></label>
-            <label>Keyword comparison <input id="auditKeyword" value="restore"></label>
-            <button class="button audit-download" id="downloadAudit">Download audited rows</button>
+            <label>Keyword <input id="auditKeyword" value="restore"></label>
+            <button class="button audit-download" id="downloadAudit">Download</button>
           </div>
-          <div class="grid kpi-grid kpi-grid--small" id="auditKpis"></div>
-          <div id="auditTable" class="table-wrap"></div>
+          <div class="audit-layout">
+            <nav class="audit-nav" aria-label="Audit views">
+              <button class="audit-nav__item is-active" type="button" data-audit-view="semantic">
+                <span class="audit-nav__title">Selected want · month</span>
+                <span class="audit-nav__value" id="auditSemanticCount">—</span>
+              </button>
+              <button class="audit-nav__item" type="button" data-audit-view="alltime">
+                <span class="audit-nav__title">All months</span>
+                <span class="audit-nav__value" id="auditAlltimeCount">—</span>
+              </button>
+              <button class="audit-nav__item" type="button" data-audit-view="keyword">
+                <span class="audit-nav__title">Keyword matches</span>
+                <span class="audit-nav__value" id="auditKeywordCount">—</span>
+              </button>
+              <button class="audit-nav__item" type="button" data-audit-view="unique">
+                <span class="audit-nav__title">Unique users</span>
+                <span class="audit-nav__value" id="auditUniqueCount">—</span>
+              </button>
+            </nav>
+            <div class="audit-content">
+              <p class="audit-content__caption" id="auditCaption"></p>
+              <div id="auditTable" class="table-wrap"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -245,14 +245,14 @@
       <section id="journeys" class="view">
         <div class="section-head">
           <div>
-            <div class="kicker">Micro reality</div>
+            <div class="kicker">Repeat users</div>
             <h2>Repeat-user journeys</h2>
           </div>
           <button class="button" id="downloadJourneys">Download journey CSV</button>
         </div>
         <p class="section-lede">
-          A repeat user is not “more tickets.” It is one unresolved story showing where
-          support sees fragments while the user experiences one long problem.
+          Users who appear more than once. Their rows, ordered by date, show what one user
+          went through.
         </p>
         <div class="grid kpi-grid kpi-grid--small journey-kpis" id="journeyKpis"></div>
 
@@ -274,12 +274,12 @@
         <details class="method-note">
           <summary>
             <span class="panel__label">How to use this page</span>
-            <span class="method-note__title">Three steps, in this order.</span>
+            <span class="method-note__title">Read in this order</span>
           </summary>
           <ol class="method-note__list">
-            <li>Start with the patterns to see the repeated operating shapes.</li>
-            <li>Open one UID to read the case as a dated user story, not separate rows.</li>
-            <li>Use the priority queue to decide which loops need an owner or playbook.</li>
+            <li>Start with the patterns.</li>
+            <li>Open one UID to read the full record.</li>
+            <li>Use the priority queue to triage.</li>
           </ol>
         </details>
 
@@ -291,7 +291,7 @@
             </div>
             <button class="reveal-close" data-hides="archetypeBlock" type="button" aria-label="Hide patterns">Hide</button>
           </header>
-          <p class="reveal-block__lede">Use these as playbook candidates, not as labels for people.</p>
+          <p class="reveal-block__lede">Repeated patterns across the journeys, ranked by users.</p>
           <div id="archetypeCards" class="archetype-grid"></div>
         </section>
 
@@ -323,65 +323,57 @@
       </section>
 
       <section id="method" class="view">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Counting method</div>
+            <h2>Definitions</h2>
+          </div>
+        </div>
         <div class="panel">
-          <div class="kicker">Counting method</div>
-          <h2>How the numbers are counted</h2>
-          <p>
-            Every number starts from the same support export.
-            The dashboard counts support records, then groups them by the user
-            goal they describe.
-          </p>
-          <div class="count-grid">
-            <div class="mini-card">
-              <strong>Analysis-ready records</strong>
-              <p>Rows left after removing summary rows and helper columns. This is the base set used for the dashboard.</p>
+          <dl class="method-glossary">
+            <div>
+              <dt>Analysis-ready records</dt>
+              <dd>Rows left after summary rows and helper columns are removed.</dd>
             </div>
-            <div class="mini-card">
-              <strong>Tickets read by AI</strong>
-              <p>High-signal records read by the local Mistral model to extract what the user wanted.</p>
+            <div>
+              <dt>Tickets read by AI</dt>
+              <dd>Rows the local model read to extract the user’s goal.</dd>
             </div>
-            <div class="mini-card">
-              <strong>Discovered wants</strong>
-              <p>Repeated goals found inside the AI-read tickets, such as access recovery or diamond transaction issues.</p>
+            <div>
+              <dt>Discovered wants</dt>
+              <dd>Goals the model found inside those tickets (e.g. access recovery).</dd>
             </div>
-            <div class="mini-card">
-              <strong>Mapped records</strong>
-              <p>All analysis-ready records assigned to the closest discovered want using multilingual text embeddings.</p>
+            <div>
+              <dt>Mapped records</dt>
+              <dd>Analysis-ready rows assigned to the nearest discovered want.</dd>
             </div>
-            <div class="mini-card">
-              <strong>Timeline numbers</strong>
-              <p>For each month, count records mapped to that want. Partial final months are hidden by default.</p>
+            <div>
+              <dt>Timeline numbers</dt>
+              <dd>Per month, the count of rows mapped to a want. Partial months hidden by default.</dd>
             </div>
-            <div class="mini-card">
-              <strong>Keyword numbers</strong>
-              <p>Literal text matches only. For example, “restore” counts rows where that exact word appears.</p>
+            <div>
+              <dt>Keyword numbers</dt>
+              <dd>Literal text matches. <code>restore</code> counts rows containing that exact word.</dd>
             </div>
-            <div class="mini-card">
-              <strong>No-ban records</strong>
-              <p>Rows where the support text contains no-ban, no ban, or no_ban.</p>
+            <div>
+              <dt>No-ban records</dt>
+              <dd>Rows containing <code>no-ban</code>, <code>no ban</code>, or <code>no_ban</code>.</dd>
             </div>
-            <div class="mini-card">
-              <strong>Repeat users</strong>
-              <p>UIDs that appear more than once. Their rows are ordered by date to show the user journey.</p>
+            <div>
+              <dt>Repeat users</dt>
+              <dd>UIDs that appear more than once, ordered by date.</dd>
             </div>
-          </div>
+          </dl>
         </div>
-        <div class="grid grid--2">
-          <div class="panel">
-            <h2>One timeline point</h2>
-            <pre><code>records = count(support records)
-where selected semantic want = selected line
-and month(date_raw) = selected month</code></pre>
-          </div>
-          <div class="panel">
-            <h2>Keyword vs want count</h2>
-            <p>
-              A keyword count asks: “does this exact word appear?” A want count
-              asks: “is the user trying to do this thing?” That is why access
-              recovery can be larger than the literal word <code>restore</code>.
-            </p>
-          </div>
-        </div>
+        <details class="method-note">
+          <summary>
+            <span class="panel__label">Formula</span>
+            <span class="method-note__title">One timeline point</span>
+          </summary>
+          <pre><code>records = count(support records)
+where want = selected line
+and month = selected month</code></pre>
+        </details>
       </section>
     </main>
   </div>
