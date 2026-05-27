@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What Users Want - Management Readout</title>
+  <meta name="description" content="Static management readout for the What Users Want support intelligence project.">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <div class="shell">
+    <aside class="side">
+      <div class="brand">
+        <div class="brand__mark">WU</div>
+        <div>
+          <div class="brand__eyebrow">Static dashboard</div>
+          <div class="brand__title">What Users Want</div>
+        </div>
+      </div>
+      <div class="data-health" id="dataHealth">Reading local CSV package...</div>
+      <nav class="nav" aria-label="Sections">
+        <button class="nav__item is-active" data-section="lookup" type="button" aria-current="page">UID search</button>
+        <button class="nav__item" data-section="briefing" type="button">Executive</button>
+        <button class="nav__item" data-section="timeline" type="button">Timeline + method</button>
+        <button class="nav__item" data-section="noban" type="button">No-ban evidence</button>
+        <button class="nav__item" data-section="journeys" type="button">User journeys</button>
+        <button class="nav__item" data-section="method" type="button">How counts work</button>
+      </nav>
+      <div class="side__note">
+        <strong>Private support intelligence.</strong>
+        Host this only on an internal company CDN or access-controlled link.
+      </div>
+    </aside>
+
+    <main class="main" id="mainContent" tabindex="-1">
+      <div class="topbar">
+        <span>Deploy</span>
+        <span class="topbar__dots" aria-hidden="true">⋮</span>
+      </div>
+      <section id="lookup" class="view is-active">
+        <section class="lookup-home">
+          <div class="lookup-home__mark">WU</div>
+          <h1>Search by UID</h1>
+          <p>Open one user’s support history before reading the dashboard.</p>
+          <div class="uid-search-card" role="search">
+            <label class="sr-only" for="uidSearch">UID search</label>
+            <div class="uid-search-row">
+              <input id="uidSearch" inputmode="numeric" autocomplete="off" placeholder="Paste UID">
+              <button class="button" id="uidSearchButton" type="button">Search</button>
+            </div>
+            <label class="uid-match-wrap" id="uidMatchWrap" hidden>
+              Matching UIDs
+              <select id="uidMatchSelect"></select>
+            </label>
+          </div>
+          <p class="lookup-home__hint">Exact UID is best. A partial UID works when you only have a copied fragment.</p>
+          <button class="lookup-home__link" data-open-section="briefing" type="button">Open the dashboard instead</button>
+        </section>
+        <div id="uidLookupResult" class="lookup-result"></div>
+      </section>
+
+      <section id="briefing" class="view">
+        <section class="hero">
+          <div>
+            <div class="kicker">Support record -> semantic operating map</div>
+            <h1>What users actually want</h1>
+            <p>
+              The support record is not just a ticket count. It shows the one
+              thing users keep asking for, how that demand is moving, and the
+              shortest fix that would close the loop.
+            </p>
+          </div>
+          <div class="hero__meta">
+            <span id="runName">Loading run...</span>
+            <span id="generatedAt">Generated...</span>
+          </div>
+        </section>
+
+        <div class="panel panel--headline">
+          <div class="panel__label">Executive answer</div>
+          <h2>Most users come back for one thing: getting their account back.</h2>
+          <p>
+            The same need shows up under account, ban, group, room, and
+            explanation tickets. Reading them as one story makes the next
+            move obvious.
+          </p>
+          <div class="headline-stat">
+            <strong id="headlineStatValue">—</strong>
+            <span id="headlineStatLabel">users came back more than once</span>
+          </div>
+          <div class="reveal-controls" role="group" aria-label="Open a section">
+            <button class="reveal-button" data-reveals="evidenceBlock" type="button">
+              <span class="reveal-button__icon" aria-hidden="true">+</span>
+              <span>Show the evidence</span>
+            </button>
+            <button class="reveal-button" data-reveals="actionsBlock" type="button">
+              <span class="reveal-button__icon" aria-hidden="true">+</span>
+              <span>What should we do</span>
+            </button>
+            <button class="reveal-button" data-reveals="trendBlock" data-render="trend" type="button">
+              <span class="reveal-button__icon" aria-hidden="true">+</span>
+              <span>Show the trend</span>
+            </button>
+          </div>
+        </div>
+
+        <section class="reveal-block" id="evidenceBlock" hidden aria-hidden="true">
+          <header class="reveal-block__head">
+            <div>
+              <div class="panel__label">Evidence</div>
+              <h2>The four numbers behind the headline</h2>
+            </div>
+            <button class="reveal-close" data-hides="evidenceBlock" type="button" aria-label="Hide evidence">Hide</button>
+          </header>
+          <div class="proof-grid" id="executiveEvidence"></div>
+        </section>
+
+        <section class="reveal-block" id="actionsBlock" hidden aria-hidden="true">
+          <header class="reveal-block__head">
+            <div>
+              <div class="panel__label">What should we do</div>
+              <h2>Three operating moves</h2>
+            </div>
+            <button class="reveal-close" data-hides="actionsBlock" type="button" aria-label="Hide actions">Hide</button>
+          </header>
+          <div class="action-strip" aria-label="Recommended management actions">
+            <article>
+              <span>1</span>
+              <div>
+                <h3>Give each recovery user one clear status</h3>
+                <p>Reason, proof needed, owner, and next step travel with the UID — no more starting over each reply.</p>
+              </div>
+            </article>
+            <article>
+              <span>2</span>
+              <div>
+                <h3>Treat repeat users as one case, not many tickets</h3>
+                <p>When a user comes back, an owner picks it up where it left off instead of sending another isolated reply.</p>
+              </div>
+            </article>
+            <article>
+              <span>3</span>
+              <div>
+                <h3>Keep moderation notes traceable to rows</h3>
+                <p>No-ban mentions and similar context stay linked to the original ticket, so decisions can be reread later.</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="reveal-block" id="trendBlock" hidden aria-hidden="true">
+          <header class="reveal-block__head">
+            <div>
+              <div class="panel__label">Evidence trend</div>
+              <h2>Observed demand and next-month projection</h2>
+            </div>
+            <button class="reveal-close" data-hides="trendBlock" type="button" aria-label="Hide trend">Hide</button>
+          </header>
+          <p class="reveal-block__lede">
+            Solid lines are actual mapped support records. Dashed segments are
+            the next-month projection from the same run.
+          </p>
+          <div id="warningBars" class="forecast-stack"></div>
+        </section>
+
+        <details class="method-note">
+          <summary>
+            <span class="panel__label">Why this is different from a sheet filter</span>
+            <span class="method-note__title">The count is semantic, then auditable.</span>
+          </summary>
+          <p>
+            A keyword search finds exact words. This readout groups the same user
+            goal across wording, languages, categories, IDs, screenshots, and
+            support notes. Every number can still be opened back to rows.
+          </p>
+        </details>
+      </section>
+
+      <section id="timeline" class="view">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Macro timeline</div>
+            <h2>What changed month by month</h2>
+          </div>
+          <div class="control-row">
+            <label class="toggle"><input type="checkbox" id="combineTitles" checked> Combine same titles</label>
+            <label class="toggle"><input type="checkbox" id="includePartial"> Include partial months</label>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel__toolbar">
+            <span class="small-note">Shown wants</span>
+            <button class="button button--subtle" id="timelineTop6" type="button">Top 5</button>
+            <button class="button button--subtle" id="timelineClear" type="button">Clear</button>
+          </div>
+          <div class="forecast-copy forecast-copy--compact">
+            <span>Solid line: observed records.</span>
+            <span>Dashed tail: projected next month where available.</span>
+          </div>
+          <div id="timelineReadout" class="timeline-readout" aria-live="polite"></div>
+          <div class="select-grid" id="timelineChoices"></div>
+          <div id="timelineChart" class="chart"></div>
+          <div id="timelineLegend" class="legend"></div>
+        </div>
+        <div class="panel panel--audit">
+          <div class="section-head section-head--tight">
+            <div>
+              <div class="kicker">Reproducibility</div>
+              <h2>Audit one timeline number</h2>
+            </div>
+          </div>
+          <div class="audit-controls">
+            <label>Want line <select id="auditWant"></select></label>
+            <label>Month <select id="auditMonth"></select></label>
+            <label>Keyword comparison <input id="auditKeyword" value="restore"></label>
+            <button class="button audit-download" id="downloadAudit">Download audited rows</button>
+          </div>
+          <div class="grid kpi-grid kpi-grid--small" id="auditKpis"></div>
+          <div id="auditTable" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section id="noban" class="view">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Moderation keyword evidence</div>
+            <h2>No-ban mentions</h2>
+          </div>
+          <button class="button" id="downloadNoBan">Download no-ban CSV</button>
+        </div>
+        <div class="grid kpi-grid kpi-grid--small" id="noBanKpis"></div>
+        <div class="panel">
+          <div class="filter-row">
+            <label>Category <select id="noBanCategory"></select></label>
+            <label>Status <select id="noBanStatus"></select></label>
+            <label>Want <select id="noBanWant"></select></label>
+            <label>Search text <input id="noBanSearch" placeholder="group, feed, ban..."></label>
+          </div>
+          <div id="noBanTable" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section id="journeys" class="view">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Micro reality</div>
+            <h2>Repeat-user journeys</h2>
+          </div>
+          <button class="button" id="downloadJourneys">Download journey CSV</button>
+        </div>
+        <p class="section-lede">
+          A repeat user is not “more tickets.” It is one unresolved story showing where
+          support sees fragments while the user experiences one long problem.
+        </p>
+        <div class="grid kpi-grid kpi-grid--small journey-kpis" id="journeyKpis"></div>
+
+        <div class="reveal-controls reveal-controls--block" role="group" aria-label="Open a section">
+          <button class="reveal-button" data-reveals="archetypeBlock" type="button">
+            <span class="reveal-button__icon" aria-hidden="true">+</span>
+            <span>See the patterns</span>
+          </button>
+          <button class="reveal-button" data-reveals="caseBlock" type="button">
+            <span class="reveal-button__icon" aria-hidden="true">+</span>
+            <span>Open one UID</span>
+          </button>
+          <button class="reveal-button" data-reveals="queueBlock" type="button">
+            <span class="reveal-button__icon" aria-hidden="true">+</span>
+            <span>Priority queue</span>
+          </button>
+        </div>
+
+        <details class="method-note">
+          <summary>
+            <span class="panel__label">How to use this page</span>
+            <span class="method-note__title">Three steps, in this order.</span>
+          </summary>
+          <ol class="method-note__list">
+            <li>Start with the patterns to see the repeated operating shapes.</li>
+            <li>Open one UID to read the case as a dated user story, not separate rows.</li>
+            <li>Use the priority queue to decide which loops need an owner or playbook.</li>
+          </ol>
+        </details>
+
+        <section class="reveal-block" id="archetypeBlock" hidden aria-hidden="true">
+          <header class="reveal-block__head">
+            <div>
+              <div class="panel__label">Patterns</div>
+              <h2>Journey archetypes</h2>
+            </div>
+            <button class="reveal-close" data-hides="archetypeBlock" type="button" aria-label="Hide patterns">Hide</button>
+          </header>
+          <p class="reveal-block__lede">Use these as playbook candidates, not as labels for people.</p>
+          <div id="archetypeCards" class="archetype-grid"></div>
+        </section>
+
+        <section class="reveal-block" id="caseBlock" hidden aria-hidden="true">
+          <header class="reveal-block__head">
+            <div>
+              <div class="panel__label">Case roadmap</div>
+              <h2>Open one UID</h2>
+            </div>
+            <button class="reveal-close" data-hides="caseBlock" type="button" aria-label="Hide case roadmap">Hide</button>
+          </header>
+          <label class="full control-field">UID <select id="journeyUid"></select></label>
+          <p class="helper-copy">The roadmap below keeps the original sequence, so a single user’s friction is visible end to end.</p>
+          <div id="journeySummary" class="callout"></div>
+          <div id="journeyEvents" class="table-wrap"></div>
+        </section>
+
+        <section class="reveal-block" id="queueBlock" hidden aria-hidden="true">
+          <header class="reveal-block__head">
+            <div>
+              <div class="panel__label">Priority queue</div>
+              <h2>Highest-severity repeat users</h2>
+            </div>
+            <button class="reveal-close" data-hides="queueBlock" type="button" aria-label="Hide priority queue">Hide</button>
+          </header>
+          <p class="reveal-block__lede">Sorted by volume, duration, unresolved share, and number of distinct wants.</p>
+          <div id="journeyTable" class="table-wrap"></div>
+        </section>
+      </section>
+
+      <section id="method" class="view">
+        <div class="panel">
+          <div class="kicker">Counting method</div>
+          <h2>How the numbers are counted</h2>
+          <p>
+            Every number starts from the same support export.
+            The dashboard counts support records, then groups them by the user
+            goal they describe.
+          </p>
+          <div class="count-grid">
+            <div class="mini-card">
+              <strong>Analysis-ready records</strong>
+              <p>Rows left after removing summary rows and helper columns. This is the base set used for the dashboard.</p>
+            </div>
+            <div class="mini-card">
+              <strong>Tickets read by AI</strong>
+              <p>High-signal records read by the local Mistral model to extract what the user wanted.</p>
+            </div>
+            <div class="mini-card">
+              <strong>Discovered wants</strong>
+              <p>Repeated goals found inside the AI-read tickets, such as access recovery or diamond transaction issues.</p>
+            </div>
+            <div class="mini-card">
+              <strong>Mapped records</strong>
+              <p>All analysis-ready records assigned to the closest discovered want using multilingual text embeddings.</p>
+            </div>
+            <div class="mini-card">
+              <strong>Timeline numbers</strong>
+              <p>For each month, count records mapped to that want. Partial final months are hidden by default.</p>
+            </div>
+            <div class="mini-card">
+              <strong>Keyword numbers</strong>
+              <p>Literal text matches only. For example, “restore” counts rows where that exact word appears.</p>
+            </div>
+            <div class="mini-card">
+              <strong>No-ban records</strong>
+              <p>Rows where the support text contains no-ban, no ban, or no_ban.</p>
+            </div>
+            <div class="mini-card">
+              <strong>Repeat users</strong>
+              <p>UIDs that appear more than once. Their rows are ordered by date to show the user journey.</p>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid--2">
+          <div class="panel">
+            <h2>One timeline point</h2>
+            <pre><code>records = count(support records)
+where selected semantic want = selected line
+and month(date_raw) = selected month</code></pre>
+          </div>
+          <div class="panel">
+            <h2>Keyword vs want count</h2>
+            <p>
+              A keyword count asks: “does this exact word appear?” A want count
+              asks: “is the user trying to do this thing?” That is why access
+              recovery can be larger than the literal word <code>restore</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./vendor/echarts.min.js"></script>
+  <script src="./assets/app.js"></script>
+</body>
+</html>
