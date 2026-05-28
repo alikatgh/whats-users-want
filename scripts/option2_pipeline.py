@@ -59,6 +59,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
+os.environ.setdefault("MPLCONFIGDIR", str(Path(__file__).resolve().parents[1] / ".matplotlib-cache"))
+
 import numpy as np
 import pandas as pd
 
@@ -1348,10 +1350,24 @@ def cluster_texts(df: pd.DataFrame, out_dir: Path, backend: str, model_name: str
         import umap
 
         n_neighbors = min(30, max(5, len(work) // 200))
-        reducer_2d = umap.UMAP(n_components=2, n_neighbors=n_neighbors, min_dist=0.08, metric="cosine", random_state=42)
+        reducer_2d = umap.UMAP(
+            n_components=2,
+            n_neighbors=n_neighbors,
+            min_dist=0.08,
+            metric="cosine",
+            random_state=42,
+            n_jobs=1,
+        )
         coords = reducer_2d.fit_transform(dense)
         x, y = coords[:, 0], coords[:, 1]
-        reducer_cluster = umap.UMAP(n_components=10, n_neighbors=n_neighbors, min_dist=0.0, metric="cosine", random_state=42)
+        reducer_cluster = umap.UMAP(
+            n_components=10,
+            n_neighbors=n_neighbors,
+            min_dist=0.0,
+            metric="cosine",
+            random_state=42,
+            n_jobs=1,
+        )
         reduced = reducer_cluster.fit_transform(dense)
     except Exception as exc:
         print(f"[warn] UMAP unavailable/failed: {exc}. Clustering on SVD/embedding space.", file=sys.stderr)

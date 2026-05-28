@@ -167,6 +167,30 @@ def call_ollama(model: str, ollama_url: str, prompt: str, timeout: int) -> dict:
     return parse_json_object(content)
 
 
+def check_ollama_ready(model: str, ollama_url: str, timeout: int = 5) -> None:
+    """Fail fast if Ollama or the requested local model is unavailable."""
+    request = urllib.request.Request(ollama_url.rstrip("/") + "/api/tags", method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError(
+            f"Could not reach Ollama at {ollama_url}. Start it with: ollama serve"
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Ollama at {ollama_url} returned invalid JSON from /api/tags") from exc
+
+    model_names = {
+        str(item.get("name") or item.get("model") or "").strip()
+        for item in body.get("models", [])
+        if isinstance(item, dict)
+    }
+    if model_names and model not in model_names:
+        raise RuntimeError(
+            f"Ollama is running, but model '{model}' is not installed. Run: ollama pull {model}"
+        )
+
+
 def parse_json_object(text: str) -> dict:
     """Best-effort extract a JSON object from a possibly-prose-wrapped string.
 
@@ -343,7 +367,24 @@ def main() -> int:
 
     rows = []
     todo = taxonomy[taxonomy["want_id"] != -1].copy()
+    needs_model = [
+        int(r["want_id"])
+        for _, r in todo.iterrows()
+        if not (
+            int(r["want_id"]) in existing
+            and existing[int(r["want_id"])].get("human_title")
+            and not args.force
+        )
+    ]
     print(f"Labelling {len(todo)} clusters with {args.model} via {args.ollama_url} ...")
+    if needs_model:
+        try:
+            check_ollama_ready(args.model, args.ollama_url, timeout=min(args.timeout, 5))
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            print("No label file was written; existing cached labels were left unchanged.", file=sys.stderr)
+            return 2
+
     for _, row in todo.iterrows():
         wid = int(row["want_id"])
         if wid in existing and existing[wid].get("human_title") and not args.force:

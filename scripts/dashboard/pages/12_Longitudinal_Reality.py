@@ -195,7 +195,7 @@ with st.expander("How these timeline numbers are calculated", expanded=False):
 
         **Pipeline used for this page:**
 
-        1. Start from the manager-maintained export and clean it into analysis-ready support records.
+        1. Start from the support export and clean it into analysis-ready support records.
         2. Run the high-signal records through local Mistral/Ollama to extract the actual user want.
         3. Cluster those extracted wants into repeated user-want groups.
         4. Map every analysis-ready record to the nearest discovered want using multilingual embeddings.
@@ -354,7 +354,6 @@ if len(assignment_audit):
             show_cols = [
                 "source_row",
                 "date_raw",
-                "manager",
                 "uid",
                 "category",
                 "status_en",
@@ -377,7 +376,6 @@ if len(assignment_audit):
                     columns={
                         "source_row": "Ticket #",
                         "date_raw": "Date",
-                        "manager": "Manager",
                         "uid": "UID",
                         "category": "Category",
                         "status_en": "Status",
@@ -395,7 +393,10 @@ if len(assignment_audit):
             )
             st.download_button(
                 "Download audited rows",
-                audit_rows.to_csv(index=False).encode("utf-8"),
+                audit_rows.drop(
+                    columns=[c for c in audit_rows.columns if c.lower().startswith("manager")],
+                    errors="ignore",
+                ).to_csv(index=False).encode("utf-8"),
                 file_name=f"audit_{run_dir.name}_{audit_month}_{audit_want[:40].replace(' ', '_')}.csv",
                 mime="text/csv",
                 icon=":material/download:",
@@ -543,13 +544,12 @@ if len(journey_view):
                     textposition="middle center",
                     hovertemplate=(
                         "<b>%{customdata[0]}</b><br>Date: %{x|%Y-%m-%d}<br>Status: %{customdata[1]}<br>"
-                        "Manager: %{customdata[2]}<br>Question: %{customdata[3]}<extra></extra>"
+                        "Question: %{customdata[2]}<extra></extra>"
                     ),
                     customdata=[
                         [
                             _clean(row.get("want_title")),
                             _clean(row.get("status")),
-                            _clean(row.get("manager")),
                             _clean(row.get("question")),
                         ]
                     ],
@@ -571,7 +571,6 @@ if len(journey_view):
                 "want_title",
                 "category",
                 "status",
-                "manager",
                 "actual_user_want",
                 "support_next_step",
                 "product_opportunity",
@@ -584,7 +583,6 @@ if len(journey_view):
                 "want_title": "Want",
                 "category": "Source category",
                 "status": "Status",
-                "manager": "Manager",
                 "actual_user_want": "AI-read actual want",
                 "support_next_step": "Suggested next step",
                 "product_opportunity": "Product/process opportunity",

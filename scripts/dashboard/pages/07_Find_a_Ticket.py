@@ -82,7 +82,7 @@ from lib import chart_picker, counts_df, humanize_desire, run_picker
 
 st.title("Find a ticket")
 st.caption(
-    "Search every ticket in this run by manager, primary desire, category, status, "
+    "Search every ticket in this run by primary desire, category, status, "
     "or any text. Click any row in the table to expand details below."
 )
 
@@ -157,7 +157,6 @@ def distinct(col: str) -> list[str]:
 
 with st.sidebar:
     st.header("Filters")
-    sel_manager = st.multiselect("Manager", distinct("manager"))
     desire_codes = distinct("primary_desire")
     desire_label_map = {humanize_desire(d): d for d in desire_codes}
     sel_desire_labels = st.multiselect("Primary desire", list(desire_label_map.keys()))
@@ -201,7 +200,6 @@ def in_clause(col: str, values: list[str]) -> None:
     params.extend(values)
 
 
-in_clause("manager", sel_manager)
 in_clause("primary_desire", sel_desire)
 in_clause("category", sel_category)
 in_clause("status_en", sel_status)
@@ -215,7 +213,6 @@ where_sql = " AND ".join(clauses) if clauses else "1=1"
 cols_to_show = [
     "source_row",
     "date_raw",
-    "manager",
     "uid",
     "category",
     "question_kind",
@@ -254,7 +251,6 @@ if len(df):
         breakdown_options = {}
         for col, label in [
             ("primary_desire", "Primary desire"),
-            ("manager", "Manager"),
             ("category", "Category"),
             ("status_en", "Status"),
             ("context_depth_band", "Evidence level"),
@@ -278,7 +274,6 @@ if len(df):
 rename_map = {
     "source_row": "Ticket #",
     "date_raw": "Date",
-    "manager": "Manager",
     "uid": "User ID",
     "category": "Category",
     "question_kind": "Question kind",
@@ -304,7 +299,7 @@ with st.expander("Open one ticket in detail"):
         if len(row):
             r = row.iloc[0]
             st.write(
-                f"**Manager:** {r.get('manager', '')}  ·  **Category:** {r.get('category', '')}  ·  "
+                f"**Category:** {r.get('category', '')}  ·  "
                 f"**Status:** {r.get('status_en', '')}  ·  **Date:** {r.get('date_raw', '')}"
             )
             st.write(

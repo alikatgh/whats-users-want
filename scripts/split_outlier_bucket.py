@@ -39,10 +39,14 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import sys
 from datetime import datetime
 from pathlib import Path
+
+if not os.environ.get("LOKY_MAX_CPU_COUNT", "").strip():
+    os.environ["LOKY_MAX_CPU_COUNT"] = str(max(1, (os.cpu_count() or 2) - 1))
 
 import numpy as np
 import pandas as pd
@@ -597,7 +601,14 @@ def create_map(run_dir: Path, assignments: pd.DataFrame, embeddings: np.ndarray 
         if embeddings is None:
             _, _, embeddings = load_inputs(run_dir)
         X = normalize(embeddings[assignments["embedding_row"].to_numpy()])
-        coords = umap.UMAP(n_components=2, n_neighbors=20, min_dist=0.08, metric="cosine", random_state=42).fit_transform(X)
+        coords = umap.UMAP(
+            n_components=2,
+            n_neighbors=20,
+            min_dist=0.08,
+            metric="cosine",
+            random_state=42,
+            n_jobs=1,
+        ).fit_transform(X)
         plot_df = assignments.copy()
         plot_df["x"] = coords[:, 0]
         plot_df["y"] = coords[:, 1]

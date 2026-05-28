@@ -104,8 +104,8 @@ st.markdown(
     <div class="wwu-eyebrow">Moderation keyword evidence</div>
     <div class="wwu-lede">
     This page extracts every support record where a no-ban keyword appears in
-    the manager-written ticket content, then attaches the user-want mapping so
-    the manager can see what those cases were actually about.
+    the ticket content, then attaches the user-want mapping so the team can see
+    what those cases were actually about.
     </div>
     """,
     unsafe_allow_html=True,
@@ -168,10 +168,6 @@ if matches.empty:
 
 with st.sidebar:
     st.header("Filters")
-    if "manager" in matches.columns:
-        managers = sorted(matches["manager"].fillna("(missing)").astype(str).unique())
-        selected_managers = st.multiselect("Manager", managers, default=managers)
-        matches = matches[matches["manager"].fillna("(missing)").astype(str).isin(selected_managers)]
     if "category" in matches.columns:
         categories = sorted(matches["category"].fillna("(missing)").astype(str).unique())
         selected_categories = st.multiselect("Category", categories, default=categories)
@@ -225,7 +221,6 @@ st.subheader("No-ban evidence table")
 show_cols = [
     "source_row",
     "date_raw",
-    "manager",
     "uid",
     "category",
     "status_en",
@@ -244,7 +239,6 @@ show_cols = [c for c in show_cols if c in matches.columns]
 rename = {
     "source_row": "Ticket #",
     "date_raw": "Date",
-    "manager": "Manager",
     "uid": "UID",
     "category": "Category",
     "status_en": "Status",
@@ -266,7 +260,6 @@ with st.expander("Open one no-ban case in detail"):
     chosen = st.selectbox("Ticket #", matches["source_row"].astype(str).tolist())
     row = matches[matches["source_row"].astype(str).eq(chosen)].iloc[0]
     st.write(
-        f"**Manager:** {_clean(row.get('manager'))}  ·  "
         f"**Category:** {_clean(row.get('category'))}  ·  "
         f"**Status:** {_clean(row.get('status_en'))}  ·  "
         f"**Date:** {_clean(row.get('date_raw'))}"
@@ -287,7 +280,6 @@ download_cols = [
         "source_row",
         "date_raw",
         "date",
-        "manager",
         "uid",
         "category",
         "status_en",

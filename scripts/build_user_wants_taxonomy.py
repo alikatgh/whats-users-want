@@ -11,7 +11,9 @@ Pipeline:
 1. Load the extraction table named by ``llm_extraction_status.json`` when
    present, then fall back to the canonical local/Ollama aliases.
 2. Build ``_want_text`` per row by joining the four want/job/opportunity fields.
-3. Embed with the same multilingual sentence-transformer used in earlier stages.
+3. Embed with the same multilingual sentence-transformer used in earlier stages,
+   falling back to fixed local hashed n-gram vectors if the model is unavailable
+   offline.
 4. Cluster:
 
    * ``--method auto`` (default) — try HDBSCAN with ``min_samples=1`` and
@@ -46,12 +48,19 @@ about ban-removal *and* explanation, not just ban-removal).
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
+import os
 import re
 import sys
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+
+if not os.environ.get("LOKY_MAX_CPU_COUNT", "").strip():
+    os.environ["LOKY_MAX_CPU_COUNT"] = str(max(1, (os.cpu_count() or 2) - 1))
+os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 
 import numpy as np
 import pandas as pd
@@ -83,6 +92,8 @@ WANT_TEXT_FIELDS = [
     "product_opportunity",
     "literal_request",
 ]
+
+_SENTENCE_TRANSFORMER_UNAVAILABLE = False
 
 
 def load_extractions(run_dir: Path) -> pd.DataFrame:
@@ -245,13 +256,43 @@ def embed_texts(texts: list[str]) -> np.ndarray:
           float64 and is the precision the model was trained at —
           there is no information to gain by upcasting.
     """
-    from sentence_transformers import SentenceTransformer
+    global _SENTENCE_TRANSFORMER_UNAVAILABLE
+    if not _SENTENCE_TRANSFORMER_UNAVAILABLE:
+        try:
+            from sentence_transformers import SentenceTransformer
 
-    model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-    embeddings = model.encode(
-        texts, batch_size=32, show_progress_bar=False, normalize_embeddings=True
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                model = SentenceTransformer(
+                    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+                    local_files_only=True,
+                )
+                embeddings = model.encode(
+                    texts, batch_size=32, show_progress_bar=False, normalize_embeddings=True
+                )
+            embed_texts.last_backend = "sentence_transformer_local"
+            return np.asarray(embeddings, dtype=np.float32)
+        except Exception as exc:
+            _SENTENCE_TRANSFORMER_UNAVAILABLE = True
+            print(
+                f"[warn] sentence-transformer unavailable; falling back to hashed n-gram embeddings: {exc}",
+                file=sys.stderr,
+            )
+    embed_texts.last_backend = "hashed_ngram_fallback"
+    return embed_texts_tfidf(texts)
+
+
+def embed_texts_tfidf(texts: list[str]) -> np.ndarray:
+    """Offline fixed-space embedding fallback for taxonomy/projection runs."""
+    from sklearn.feature_extraction.text import HashingVectorizer
+
+    vectorizer = HashingVectorizer(
+        analyzer="char_wb",
+        ngram_range=(3, 5),
+        n_features=384,
+        alternate_sign=False,
+        norm="l2",
     )
-    return np.asarray(embeddings, dtype=np.float32)
+    return vectorizer.transform(texts).toarray().astype(np.float32)
 
 
 def cluster_wants(
@@ -341,10 +382,14 @@ def cluster_wants(
           band one cluster per ~14 tickets. With ``n ≈ 250`` this
           settles on ``k = 17``.
     """
+    def kmeans_n(default_n: int) -> int:
+        requested = n_clusters or default_n
+        return max(1, min(int(requested), len(embeddings)))
+
     if method == "kmeans":
         from sklearn.cluster import KMeans
 
-        n = n_clusters or max(8, min(24, len(embeddings) // 12))
+        n = kmeans_n(max(8, min(24, len(embeddings) // 12)))
         return KMeans(n_clusters=n, n_init="auto", random_state=42).fit_predict(embeddings)
     try:
         import hdbscan
@@ -367,14 +412,14 @@ def cluster_wants(
             )
             from sklearn.cluster import KMeans
 
-            n = n_clusters or max(10, min(20, len(embeddings) // 14))
+            n = kmeans_n(max(10, min(20, len(embeddings) // 14)))
             return KMeans(n_clusters=n, n_init="auto", random_state=42).fit_predict(embeddings)
         return labels
     except Exception as exc:  # noqa: BLE001
         print(f"[warn] HDBSCAN failed ({exc}); falling back to KMeans", file=sys.stderr)
         from sklearn.cluster import KMeans
 
-        n = n_clusters or max(8, min(20, len(embeddings) // 12))
+        n = kmeans_n(max(8, min(20, len(embeddings) // 12)))
         return KMeans(n_clusters=n, n_init="auto", random_state=42).fit_predict(embeddings)
 
 
@@ -916,6 +961,7 @@ def main() -> int:
     print(f"non-empty want_text rows: {len(extractions)}")
 
     embeddings = embed_texts(extractions["_want_text"].tolist())
+    embedding_backend = getattr(embed_texts, "last_backend", "unknown")
     print(f"embeddings: {embeddings.shape}")
 
     labels = cluster_wants(
@@ -946,6 +992,7 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source_file": source_file,
         "rows": int(len(extractions)),
+        "embedding_backend": embedding_backend,
         "clusters": int(n_clusters),
         "outliers": int(n_outlier),
         "min_cluster_size": int(args.min_cluster_size),

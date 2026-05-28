@@ -91,7 +91,7 @@ except urllib.error.URLError as exc:
 The `from exc` clause attaches the original exception as `__cause__` on
 the new one. When Python prints the traceback, the user sees both:
 
-```
+```text
 urllib.error.URLError: <urlopen error [Errno 61] Connection refused>
 
 The above exception was the direct cause of the following exception:

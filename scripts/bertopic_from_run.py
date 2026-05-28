@@ -160,6 +160,7 @@ def run(run_dir: Path, min_topic_size: int) -> None:
         min_dist=0.0,
         metric="cosine",
         random_state=42,
+        n_jobs=1,
     )
     hdbscan_model = HDBSCAN(
         min_cluster_size=min_topic_size,
@@ -250,6 +251,10 @@ def parse_args() -> argparse.Namespace:
           callable so you don't have to call ``int(...)`` yourself, and you
           get a friendly error if the user passes ``"thirty-five"``.
     """
+    parser = argparse.ArgumentParser(description="Run BERTopic validation for an Option 2 run directory.")
+    parser.add_argument("run_dir", help="Path to outputs/option2_<timestamp>")
+    parser.add_argument("--min-topic-size", type=int, default=35)
+    return parser.parse_args()
 
 
 if __name__ == "__main__":

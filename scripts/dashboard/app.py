@@ -65,7 +65,7 @@ def home_page() -> None:
     st.title("What users actually want")
     st.markdown(
         "**A living multilingual support record becomes a map of user intent.** "
-        "Use this dashboard to move from manager-written operational records to "
+        "Use this dashboard to move from support records to "
         "the few recurring things users are actually trying to accomplish, plus "
         "the risks and support actions attached to each one."
     )
@@ -409,8 +409,6 @@ AI extraction: {model_label or "not available"}{(" via " + backend_label) if bac
       reporting users are angry. The default support reply template fits one and not the other.</li>
   <li><strong>Diamond / dealer disputes</strong> are the single highest-risk cluster across money,
       trust and urgency. They deserve their own escalation lane.</li>
-  <li><strong>Long, evidence-rich notes</strong> are the input every layer of the analysis
-      depends on. One manager (Albert) writes notes 2–3× richer than peers, controlling for case mix.</li>
 </ul>
 
 <h2>Top discovered user wants</h2>

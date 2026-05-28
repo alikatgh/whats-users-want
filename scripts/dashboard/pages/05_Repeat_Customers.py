@@ -221,7 +221,6 @@ rename_map = {
     "last_date": "Last ticket",
     "unresolved_share": "Unresolved %",
     "avg_context_score": "Avg note evidence score",
-    "managers_seen": "Managers seen",
     "top_desires": "Top desires",
     "top_issues": "Top topics",
     "high_context_example_1": "Example ticket",

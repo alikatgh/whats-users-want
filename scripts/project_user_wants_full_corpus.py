@@ -338,6 +338,7 @@ def project_full_corpus(args: argparse.Namespace) -> dict[str, Any]:
     else:
         centroids, want_ids, centroid_meta = _build_centroids_from_want_text(confirmed)
         ticket_embeddings = embed_texts(enriched["_projection_text"].fillna("").astype(str).tolist())
+        embedding_source = getattr(embed_texts, "last_backend", embedding_source)
         has_embedding = np.ones(len(enriched), dtype=bool)
 
     want_index = {want_id: i for i, want_id in enumerate(want_ids)}

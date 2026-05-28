@@ -120,18 +120,12 @@ st.caption(f"Showing **{len(assignments):,}** tickets in this run.")
 color_options = {
     "primary_desire": "Primary desire",
     "cluster_id": "Topic cluster",
-    "manager": "Manager",
     "context_depth_score": "Note evidence score",
 }
 color_options = {k: v for k, v in color_options.items() if k in assignments.columns}
 
 with st.sidebar:
     st.header("Filters")
-    if "manager" in assignments.columns:
-        managers = sorted(assignments["manager"].fillna("Unknown").unique())
-        sel_managers = st.multiselect("Manager", managers, default=managers)
-    else:
-        sel_managers = None
     if "primary_desire" in assignments.columns:
         desire_codes = sorted(assignments["primary_desire"].fillna("unclear_or_needs_llm").unique())
         desire_label_map = {humanize_desire(d): d for d in desire_codes}
@@ -159,8 +153,6 @@ with st.sidebar:
         )
 
 f = assignments.copy()
-if sel_managers is not None and "manager" in f.columns:
-    f = f[f["manager"].fillna("Unknown").isin(sel_managers)]
 if sel_desires is not None and "primary_desire" in f.columns:
     f = f[f["primary_desire"].fillna("unclear_or_needs_llm").isin(sel_desires)]
 if "primary_desire" in f.columns:
@@ -175,7 +167,6 @@ st.metric("Tickets shown on map", f"{len(f):,}")
 
 hover_rename = {
     "source_row": "Ticket #",
-    "manager": "Manager",
     "category": "Category",
     "primary_desire": "Primary desire (raw)",
     "context_depth_score": "Note evidence score",
@@ -230,7 +221,6 @@ if clusters is not None:
         "unresolved_share": "Unresolved %",
         "top_terms": "Top terms",
         "top_desires": "Top desires",
-        "top_managers": "Top managers",
         "example_1": "Example ticket",
     }
     keep = [c for c in rename_map.keys() if c in clusters.columns]

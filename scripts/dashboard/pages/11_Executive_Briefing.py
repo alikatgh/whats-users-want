@@ -218,7 +218,6 @@ if assignments is not None and not assignments.empty:
             "source_row",
             "category",
             "primary_desire",
-            "manager",
             "status_en",
             "question_flat",
         ]
@@ -282,7 +281,7 @@ st.caption(
 )
 
 category_panel = "The source categories are useful operational labels, but they are not the user's goal."
-intent_span_panel = "The same user goal can appear under several source categories and managers."
+intent_span_panel = "The same user goal can appear under several source categories."
 if full_assignments is not None and not full_assignments.empty:
     full_signal = full_assignments.copy()
     if "assigned_want_id" in full_signal.columns:
@@ -296,7 +295,6 @@ if full_assignments is not None and not full_assignments.empty:
             .agg(
                 records=("source_row", "count"),
                 wants=("assigned_want_id", "nunique"),
-                managers=("manager", "nunique") if "manager" in full_signal.columns else ("source_row", "count"),
             )
             .query("records >= 50")
             .sort_values(["wants", "records"], ascending=False)
@@ -316,7 +314,6 @@ if full_assignments is not None and not full_assignments.empty:
             .agg(
                 records=("source_row", "count"),
                 categories=("category", "nunique"),
-                managers=("manager", "nunique") if "manager" in full_signal.columns else ("source_row", "count"),
             )
             .sort_values(["categories", "records"], ascending=False)
         )
@@ -325,8 +322,7 @@ if full_assignments is not None and not full_assignments.empty:
             title = title_lookup.get(int(row["assigned_want_id"]), str(row["assigned_want_id"]))
             intent_span_panel = (
                 f"<strong>{html.escape(str(title))}</strong> appears across "
-                f"<strong>{int(row['categories'])}</strong> source categories and "
-                f"<strong>{int(row['managers'])}</strong> managers. The model re-joins what a spreadsheet "
+                f"<strong>{int(row['categories'])}</strong> source categories. The model re-joins what a spreadsheet "
                 "would split apart."
             )
 
