@@ -56,12 +56,14 @@ data_2may.csv (6,728 tickets, mixed RU/EN/CN, messy support notes)
         └──> [project_user_wants_full_corpus.py] map all cleaned tickets to those wants
 ```
 
-All outputs land under `outputs/option2_<timestamp>/`. The latest run is **`outputs/option2_20260502_150055/`** — use this when presenting.
+All outputs land under `outputs/option2_<timestamp>/`. Two runs matter when presenting:
+- **`outputs/option2_20260513_030517/`** — the current **RunPod/Mistral** run: the 1,348-ticket want taxonomy (20 wants), full-corpus projection, and longitudinal layer.
+- **`outputs/option2_20260502_150055/`** — the original free **Gemma** run: the only run with the BERTopic (53 topics), outlier-split (26 sub-themes), and opportunity-backlog layers (Stages 2–4 were not run on RunPod).
 
 ## Latest run quick numbers
 
-- 6,728 tickets analyzed (date range 2025-06-09 to 2026-05-02)
+- 6,728 tickets analyzed → 6,702 analysis-ready (date range 2025-06-09 to 2026-05-02)
 - 2,422 unique users
-- 53 BERTopic semantic topics + 26 outlier sub-topics
-- 17-label "What Users Want" taxonomy from 250 LLM-extracted rich tickets
-- 0 paid API calls — everything ran locally with Ollama + Gemma 3:4B
+- **Current (RunPod/Mistral, May-13):** 20-want taxonomy from **1,348** Mistral Small 3.2 24B-read tickets (1,348 ok / 0 bad / 0 error), plus full-corpus projection and a longitudinal trend + journey-archetype layer
+- **Original free baseline (Gemma, May-2):** 17-want taxonomy from 250 tickets; 53 BERTopic topics + 26 outlier sub-topics
+- 0 paid API calls — both runs used local Ollama (Gemma 3:4B locally, then Mistral Small 3.2 24B on a rented GPU)

@@ -30,9 +30,9 @@ Layer 1 is in the CSV already. Layer 2 we extract with a local LLM. Layer 3 we e
 
 The dominant want across rich tickets is **not** "ban removal." It is **"ban removal *and* an explanation."**
 
-- Two of the top five user-want clusters are about *understanding punishment*, not just reversing it.
-- 81% of the rich tickets have a dominant emotion of **anxious** or **angry**.
-- The single highest-risk cluster (combined money + trust + urgency, all ≥3.9 / 5) is **diamond/dealer transaction disputes**. That should own a dedicated escalation lane.
+- Across the 1,348 Mistral-read tickets, recovery/access wants total ~37%, and *understanding punishment* is a distinct top want (n=74) — plus an explicit thread through the SVIP and channel-visibility wants.
+- Recovery wants are anxious; community-reporting wants are angry (62–70% anger). Different tickets need different responses.
+- Diamond/dealer disputes are a large repeat-user theme (the `money_or_dealer_dispute` archetype: 339 users) that should own a dedicated escalation lane. (Note: the older "money risk 4.08/5" figure was keyword-inflated and is ~1.6 on the Mistral run — see [05-findings.md](05-findings.md) Finding 2.)
 
 This reframes the work: it is not a support-volume problem, it is a **product-transparency problem**. A non-trivial share of tickets exist because users cannot self-serve the information they need.
 
@@ -41,11 +41,11 @@ This reframes the work: it is not a support-volume problem, it is a **product-tr
 These are secondary but worth defending if asked:
 
 1. **Long, detailed tickets are evidence, not noise.** Albert (one of the managers) writes notes 2-3× richer than peers. After controlling for category, question kind, role, status, and month, his average context score is +8.89 above the next manager. Rich notes carry screenshots, room IDs, ban reasons, user quotes, and timestamps — exactly what classifiers and LLMs need.
-2. **The whole pipeline is reproducible and free.** No paid APIs were used. Embeddings are local sentence-transformers; LLM extraction runs through local Ollama models. The original run used Gemma 3:4B; new runs can use Mistral Small 3.2. A new run on a new CSV is a single command.
+2. **The whole pipeline is reproducible and free of paid APIs.** No ticket text went to a hosted API. Embeddings are local sentence-transformers; LLM extraction runs through local Ollama. The original run used Gemma 3:4B on a laptop; the current run uses **Mistral Small 3.2 24B on a rented RunPod GPU** (~$0.69/hr), which scaled extraction from 250 to **1,348** tickets — see `docs/11-runpod-mistral-runbook.md`. A new run on a new CSV is a single command.
 
 ## Where the work lives
 
 - `data_2may.csv` — input.
 - `scripts/` — six Python scripts that form the pipeline.
-- `outputs/option2_<timestamp>/` — every run drops a self-contained output folder here. The latest is `outputs/option2_20260502_150055/`.
+- `outputs/option2_<timestamp>/` — every run drops a self-contained output folder here. Current want layer: `outputs/option2_20260513_030517/` (RunPod/Mistral); BERTopic/opportunity layers: `outputs/option2_20260502_150055/` (Gemma).
 - `docs/` — this folder.

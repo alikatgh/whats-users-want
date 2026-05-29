@@ -2,63 +2,65 @@
 
 Four findings, each with the supporting numbers and where to point if challenged.
 
+> **Run basis (updated 2026-05-29).** The "what users want" findings (1–3) now come
+> from the **1,348-ticket Mistral Small 3.2 24B run** (`outputs/option2_20260513_030517/`,
+> RunPod GPU) — 5.4× the original 250-ticket Gemma sample, with a clean
+> **1,348 ok / 0 bad / 0 error** extraction. Finding 4 (manager evidence) is Stage 1
+> and run-independent. The BERTopic / outlier / opportunity-backlog layers still live
+> only in the original free local run (`option2_20260502_150055/`, Gemma 3:4B) — that
+> run used the same `data_2may.csv`. Both runs are valid; they cover different stages.
+> See `runpod-mistral-run-state` notes and `docs/engineering/CODE_VERIFICATION.md`.
+
 ---
 
 ## Finding 1 — The dominant want is "ban removal AND an explanation," not just "ban removal"
 
-**Claim.** Across the 250 rich tickets we LLM-extracted, two of the top five user wants are about *understanding punishment*, not just reversing it.
+**Claim.** Across the 1,348 Mistral-read tickets, recovery/access wants dominate, and *understanding the punishment* is a distinct top want — not a footnote.
 
-**Evidence (from [user_wants_taxonomy.csv](../outputs/option2_20260502_150055/user_wants_taxonomy.csv)):**
+**Evidence (from [user_wants_taxonomy.csv](../outputs/option2_20260513_030517/user_wants_taxonomy.csv), 20 wants).** Six recovery/access clusters total ~495 tickets (**~37%** of the sample). The largest wants:
 
-| # | Want | Size | Share | Top job |
+| # | Want (label abbreviated) | n | Share | Dominant job |
 |---|---|---|---|---|
-| 1 | access_account_recover_unban_regain_unblocked | 29 | 11.6% | recover_access |
-| 2 | understand_reasons_punishment_recover_access_appeal | 23 | 9.2% | understand_punishment + recover_access |
-| 3 | group_access_channel_recover_content_restore | 18 | 7.2% | recover_access |
-| 4 | account_access_recover_unblocked_blocks_reasons | 18 | 7.2% | recover_access |
-| 5 | understand_punishment_account_reason_notifications_want | 17 | 6.8% | understand_punishment |
+| 1 | access_account_recover_appeal_unban | 121 | 9.0% | recover_access |
+| 2 | diamonds_sell_scam_recover_avoid | 95 | 7.0% | buy_or_sell_diamonds + avoid_scam |
+| 3 | unban_access_recover_request | 93 | 6.9% | recover_access |
+| 4 | account_access_recover_restore | 91 | 6.8% | recover_access |
+| 5 | protect_community_reporting_harassment | 86 | 6.4% | protect_community |
+| 6 | **understand_punishment_reason_appeal** | **74** | **5.5%** | **understand_punishment** |
 
-**Why it matters.** This is a product-transparency gap, not a support-volume gap. Tickets like "I want to understand the reason for my block" cannot be solved by adding more support agents. They are solved by clearer ban notifications and a self-serve appeals view.
+"Understand why I was punished" is its own 74-ticket want — and the *understand* theme also threads through the SVIP want (n=77; many ask why rewards changed) and the channel-visibility want (n=67; "why was my channel de-listed").
 
-**One-line takeaway.** *Users do not just want to be unbanned — they want to know why.*
+**Why it matters.** Unchanged and *stronger* at 5.4× scale: this is a product-transparency gap, not a support-volume gap. Tickets asking "why was I blocked" are solved by clearer ban notifications and a self-serve appeals view, not by more agents.
+
+**One-line takeaway.** *Users do not just want to be unbanned — they want to know why. Holds at 1,348 tickets.*
 
 ---
 
-## Finding 2 — Diamond/dealer transaction disputes are the sharpest money + trust + urgency cluster
+## Finding 2 — Diamond/dealer disputes are a major repeat-user theme — but the old "money risk 4.08" number does not survive the better model
 
-**Claim.** Among the 17 discovered wants, `diamonds_scam_avoid_transactions_transaction_money` has the highest combined risk profile.
+**Claim (revised).** Diamond/dealer/scam issues remain one of the largest, most repeat-driven themes — but the previously-cited risk scores were inflated by the keyword-based rules path and do **not** reproduce on Mistral.
 
-**Evidence:**
+**What changed.** The original slide cited the diamond cluster at **money 4.08 / trust 3.92 / urgency 3.92 (all ≥3.9)**. On the 1,348-ticket Mistral run, the diamond/scam want (n=95) scores **money 1.61 / trust 2.8 / urgency 3.04**, and money risk sits at **~1.0–1.6 across all 20 wants**. The 4.08 came from the rules formula `money_risk = 1 + 3·has_money` — any ticket mentioning "diamond" scored ~4. Mistral, reading context, classifies most as delivery/tracking issues, not money-at-risk loss.
 
-| Risk dimension | Score | Population avg |
-|---|---|---|
-| Money risk | 4.08 / 5 | 1.46 |
-| Trust risk | 3.92 / 5 | 3.40 |
-| Urgency | 3.92 / 5 | 3.66 |
-| Cluster size | 12 tickets | — |
-| Top emotion | angry | anxious |
+**Where the recommendation still stands.** The "dedicated transaction/dealer lane" call survives — now grounded in **volume and repeat behavior**, not an inflated score. The longitudinal layer's `money_or_dealer_dispute` archetype covers **339 users / 965 records (14.2% failed/open)** — the second-largest archetype — and the analysis's own recommended action is exactly *"route to a transaction/dealer evidence lane with a proof checklist and decision SLA."*
 
-Combined with the adjacent `fraud_scam_avoid_investigate_fraudulent_activity` cluster (n=12, money 3.75) and `diamonds_access_recover_money_wants_black` (n=14, money 2.86), the **money + trust risk theme is 38 tickets / 15.2% of rich tickets**.
-
-**Why it matters.** These tickets carry real financial risk for users *and* legal/reputational risk for the platform. They should not be in the same queue as voice-room ban appeals.
-
-**One-line takeaway.** *Diamond/dealer disputes deserve a dedicated escalation lane with verified-transaction tooling.*
+**One-line takeaway.** *Diamond/dealer disputes deserve a dedicated lane — justified by 339 repeat users, not by a risk score that doesn't reproduce.*
 
 ---
 
 ## Finding 3 — "Protect community" tickets are angry, not anxious
 
-**Claim.** Most user-want clusters are dominated by `anxious` users (recovery wants). Three clusters are dominated by `angry` users — and they are all **community-protection** wants where the user is *reporting someone else*, not asking for their own access back.
+**Claim.** Holds and strengthens. The community-protection wants — where the user is *reporting someone else* — are angry-dominated.
 
-**Evidence:**
+**Evidence (1,348-ticket run):**
 
-| Want | Top emotion | Anger share | What user is asking for |
+| Want | n | Anger share | What user asks for |
 |---|---|---|---|
-| scam_avoid_fraudulent_activity_detection_prevent | angry (15/17) | 88% | "Block this scammer" |
-| community_protect_abusive_behavior_reporting_content | angry (12/16) | 75% | "Remove abusive user" |
-| community_protect_reporting_behavior_action_dealer | angry (6/8) | 75% | "Protect dealers from harassment" |
+| protect_community_reporting_harassment | 86 | 60/86 = 70% | "Block this harasser" |
+| scam_protect_community_fraud | 84 | 58/84 = 69% | "Block this scammer" |
+| community_protect_group_prevent | 73 | 45/73 = 62% | "Remove this disruptive user" |
 
-**Why it matters.** The default support response (apologize, investigate, get back to user) is wrong for this class. The user is not anxious about their account — they are angry that the platform has not already acted on a clear violation. The right response is fast acknowledgement of action taken, not reassurance.
+**Why it matters.** The default support response (apologize, investigate, get back to you) is wrong for this class. The user is not anxious about their own account — they are angry the platform has not already acted. The right response is fast acknowledgement of action taken.
 
 **One-line takeaway.** *Recovery tickets need empathy. Reporting tickets need speed.*
 
@@ -66,43 +68,32 @@ Combined with the adjacent `fraud_scam_avoid_investigate_fraudulent_activity` cl
 
 ## Finding 4 — Long, detailed tickets are evidence, not noise
 
-**Claim.** One manager (Albert) writes notes 2-3× richer than peers, and after statistical controls, his evidence advantage is real.
+**Claim.** Unchanged — and run-independent (Stage 1, same `data_2may.csv`). Albert writes the richest notes by a wide margin.
 
-**Evidence (from [manager_context_residuals.csv](../outputs/option2_20260502_150055/manager_context_residuals.csv) and the adjusted manager model):**
+**Evidence (adjusted OLS, [adjusted_manager_context_model.csv](../outputs/option2_20260513_030517/adjusted_manager_context_model.csv)).** Albert is the model baseline; every other manager sits **8.8–16.4 context points below** him after controlling for category, question kind, role, status, and month (R²=0.35):
 
-| Manager | Raw context score | Expected from ticket mix | Residual (delta) |
-|---|---|---|---|
-| **Albert** | **25.29** | 16.41 | **+8.89** |
-| Alexander, Aziz | 13.15 | 11.95 | +1.20 |
-| Danila | 13.91 | 15.31 | -1.39 |
-| Leonid | 11.19 | 14.55 | -3.36 |
-| Aziz, Alexander | 12.68 | 16.41 | -3.72 |
-| Alexander | 9.40 | 15.29 | -5.89 |
-| Aziz | 9.29 | 15.31 | -6.02 |
-| Firuz | 9.72 | 17.28 | -7.56 |
+| Manager | Δ vs Albert | p |
+|---|---|---|
+| **Albert** | **baseline** | — |
+| Alexander, Aziz | −8.78 | 0.81 |
+| Leonid | −12.86 | <0.01 |
+| Danila | −13.26 | <0.01 |
+| Aziz, Alexander | −13.63 | <0.01 |
+| Alexander | −14.24 | <0.01 |
+| Firuz | −15.27 | <0.01 |
+| Aziz | −16.40 | <0.01 |
 
-The "expected" column is what the manager's score *would* be if they handled an average ticket mix. The residual is the manager's individual evidence behaviour after stripping out ticket-mix differences. Albert's +8.89 is statistically significant (p < 0.05 in the adjusted model).
+The original free run reported the same gap the other way round (Albert **+8.89** above the next manager). **Important nuance unchanged:** this is an evidence-quality claim, not a productivity claim — context depth has only a small, *non-significant* correlation with resolution (see `docs/09-limitations.md` §3).
 
-**Why it matters.** Detailed tickets carry the raw material — screenshots, room IDs, ban reasons, user quotes — that everything downstream depends on:
-- the LLM extraction step works on rich tickets (we sampled 250 from the top of the context-score distribution);
-- the user-wants taxonomy needs the LLM extraction;
-- escalation playbooks need the evidence elements.
-
-Treating long notes as "messy noise" would have killed half the analysis.
-
-**Important nuance — not a productivity claim.** The context-value model in Stage 3 shows context depth has a small positive but *not* statistically significant correlation with resolution. So we do **not** claim "richer notes close tickets faster." We claim "richer notes make tickets *understandable* — they are the input to every downstream analysis."
-
-**One-line takeaway.** *Albert's notes are the dataset's most valuable rows. The reward system should reflect that.*
+**One-line takeaway.** *Albert's notes are the dataset's most valuable rows — confirmed across both runs.*
 
 ---
 
 ## Numbers worth memorizing for Q&A
 
-- 6,728 tickets analyzed; 2,422 unique users
-- Date range 2025-06-09 → 2026-05-02
-- 53 BERTopic semantic topics + 26 outlier sub-themes
-- 17-want taxonomy from 250 LLM-extracted rich tickets
-- 0 paid API calls — Gemma 3:4B running locally via Ollama
-- 248/250 valid extractions (2 auto-flagged invalid_job)
-- Albert's adjusted context residual: +8.89; next-best: -1.39
-- Highest-risk cluster: diamonds/dealer disputes — money 4.08, trust 3.92, urgency 3.92
+- 6,728 raw tickets → 6,702 analysis-ready; 2,422 unique users; date range 2025-06-09 → 2026-05-02
+- **Current want taxonomy: 1,348 Mistral-read tickets → 20 wants** (RunPod GPU, May 2026); clean **1,348 ok / 0 bad / 0 error**
+- Original free baseline: 250 Gemma-read tickets → 17 wants; **53 BERTopic topics + 26 outlier sub-themes** (these layers exist only in the May-2 run)
+- Albert is the top note-writer by **8.8–16.4 points** over every peer (adjusted OLS; p<0.01 for all but one)
+- ⚠️ **Do not cite diamond "money risk 4.08"** — keyword-inflated; drops to ~1.6 on Mistral. Use the **339-user money/dealer archetype** instead.
+- Longitudinal layer (May-13 run): **1,233 repeat users** (2+ tickets), **772** (3+); top momentum = group-limit requests **+25.6%**, scammer-reports **57.8% failed/open**

@@ -2,21 +2,21 @@
 
 Read this before Q&A. Every concern below has a sensible answer and we should not pretend they are not real.
 
-## 1. The 250-ticket extraction is not representative of all 6,728
+## 1. The extraction sample skews to evidence-rich tickets (now 1,348, not 250)
 
-**The issue.** Stage 5 selected the 250 candidates using the `risk_balanced` strategy, which favours evidence-rich, high-risk tickets. So the resulting want-taxonomy describes *what high-context, high-stakes tickets are about*, not the full ticket mix.
+**The issue.** Stage 5 selects candidates with the `risk_balanced` strategy, which favours evidence-rich, high-risk tickets. So the resulting want-taxonomy describes *what high-context, high-stakes tickets are about*, not the full ticket mix. The current RunPod/Mistral run scaled this from 250 to **1,348** tickets (5.4×), but the same selection bias still applies.
 
-**Why we did it that way.** A small local model (Gemma 3:4B) needs raw evidence to extract anything useful. Feeding it a one-line ticket like "open my account" produces garbage. So we sampled where the model could actually work.
+**Why we did it that way.** A local model needs raw evidence to extract anything useful. Feeding it a one-line ticket like "open my account" produces garbage. So we sampled where the model could actually work.
 
-**What this means for the headline finding.** The "ban removal AND explanation" finding is robust within the rich subset. Whether *all* tickets follow the same pattern is an open question. The fix is to scale extraction to 1,000+ tickets across a broader sampling strategy.
+**What this means for the headline finding.** The "ban removal AND explanation" finding is robust within the rich subset and held when we scaled to 1,348 tickets. Whether *all* tickets follow the same pattern is still open; the projection layer (`project_user_wants_full_corpus.py`) maps the remaining records by embedding similarity with confidence bands. A full Mistral census of all ~6,702 useful records is the remaining step.
 
 **Recommended response in Q&A.** *"This taxonomy is calibrated for the rich-evidence tickets that drive escalations. We are not yet generalizing to the full inbox."*
 
 ---
 
-## 2. Gemma 3:4B is a small model
+## 2. Model quality (Gemma 3:4B → Mistral Small 3.2 24B)
 
-**The issue.** 4B-parameter models hallucinate, over-collapse categories, and miss subtle distinctions. We saw it default to `recover_access` in ambiguous cases.
+**The issue.** Small 4B models hallucinate, over-collapse categories, and miss subtle distinctions — the original Gemma 3:4B defaulted to `recover_access` in ambiguous cases. The current run upgrades to **Mistral Small 3.2 24B** on a rented GPU, which is materially stronger (the 1,348-ticket run was 100% schema-valid: 0 bad, 0 errors).
 
 **What we did to mitigate.**
 - Each output validated against a JSON schema; bad outputs flagged with `_quality_flag`, not silently kept.
@@ -24,10 +24,10 @@ Read this before Q&A. Every concern below has a sensible answer and we should no
 - Three model sizes were tested side-by-side; comparison is in [local_llm_model_comparison.md](../outputs/option2_20260502_150055/local_llm_model_comparison.md).
 
 **What we did NOT do.**
-- Human spot-check of all 250 outputs. We have not yet hand-verified extraction quality at scale.
-- Calibration of the four risk scores against a ground-truth set.
+- Human spot-check of the outputs. We have not yet hand-verified extraction quality at scale (now 1,348 rows).
+- Calibration of the four risk scores against a ground-truth set. **Note:** risk scores are model-dependent — diamond "money risk" was 4.08 under the keyword rules path and ~1.6 under Mistral. Treat absolute risk scores cautiously.
 
-**Recommended response.** *"We did not have budget for a stronger model. The pipeline is built to swap a paid API in with one flag if the budget appears. Until then, Gemma 3:4B is a working baseline with explicit quality flags."*
+**Recommended response.** *"We started with Gemma 3:4B locally, then ran Mistral Small 3.2 24B on a cheap rented GPU for the real run — 1,348 tickets, all schema-valid. Swapping in a paid API is still a one-flag change if a budget appears."*
 
 ---
 
@@ -110,7 +110,7 @@ So the value of rich notes is in *understanding*, not in *productivity*.
 
 ## What would I want to do next, given infinite time
 
-1. Scale LLM extraction from 250 to all 6,728 tickets with the best local Ollama model from validation.
+1. **Done:** scaled LLM extraction from 250 to **1,348** tickets via Mistral Small 3.2 24B on RunPod. **Remaining:** a full census of all ~6,702 useful records (runbook Step 12B).
 2. Hand-label 100 random extractions to estimate the model's accuracy per field.
 3. Add a second-language validation pass — re-run extraction on the Russian/Chinese-only subset and compare.
 4. Build a Streamlit dashboard so the team can filter the taxonomy interactively without running scripts.

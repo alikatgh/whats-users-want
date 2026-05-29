@@ -62,11 +62,11 @@ A slide-by-slide script for a 15-20 minute presentation. Each section has: what 
 
 ## Slide 7 — Stage 5: the LLM actually reads tickets
 
-**Say:** "Statistics tells us *what topics exist*. To learn *what users want, how they feel, and what is at stake*, we need a model that reads. We used Gemma 3:4B — Google's open-weights model — running locally through Ollama. Free. No API key. No data leaving the machine."
+**Say:** "Statistics tells us *what topics exist*. To learn *what users want, how they feel, and what is at stake*, we need a model that reads. The current run uses Mistral Small 3.2 24B on a rented GPU through Ollama; the original free run used Gemma 3:4B on a laptop. Either way: no API key, no ticket text leaving the machine."
 
 **Show:** [llm_extraction_prompt.md](../outputs/option2_20260502_150055/llm_extraction_prompt.md) and [llm_extraction_schema.json](../outputs/option2_20260502_150055/llm_extraction_schema.json) briefly.
 
-**Numbers:** 250 rich tickets extracted. 248 valid, 2 auto-flagged. Zero errors. Zero dollars.
+**Numbers (current Mistral run):** 1,348 rich tickets extracted — 1,348 valid, 0 auto-flagged, 0 errors. (The original free Gemma run did 250: 248 valid, 2 flagged.) No ticket text left the machine.
 
 **If challenged on model size:** "We tested 270M and 1B too — 270M was unusable, 1B over-collapsed jobs. 4B was the smallest that produced consistently usable JSON. See [local_llm_model_comparison.md](../outputs/option2_20260502_150055/local_llm_model_comparison.md)."
 
@@ -74,15 +74,15 @@ A slide-by-slide script for a 15-20 minute presentation. Each section has: what 
 
 ## Slide 8 — Stage 6: the taxonomy of wants
 
-**Say:** "We re-embedded the LLM-extracted want/job/opportunity fields and clustered them into 17 user wants with zero outliers."
+**Say:** "We re-embedded the LLM-extracted want/job/opportunity fields and clustered them into 20 user wants with zero outliers (the original Gemma run gave 17)."
 
-**Show:** [user_wants_findings.md](../outputs/option2_20260502_150055/user_wants_findings.md), the top section.
+**Show:** [user_wants_findings.md](../outputs/option2_20260513_030517/user_wants_findings.md), the top section.
 
 ---
 
 ## Slide 9 — Finding 1: the dominant want is *understanding*, not just access
 
-**Say:** "Two of the top five user wants are about *understanding punishment*, not just reversing it. This is not a support-volume problem — it is a product-transparency gap."
+**Say:** "Recovery/access wants are ~37% of the 1,348 tickets — and 'understand why I was punished' is its own top want (n=74), on top of the understanding thread running through the SVIP and channel-visibility wants. This is not a support-volume problem — it is a product-transparency gap."
 
 **Show:** Top 5 from [docs/05-findings.md](05-findings.md), Finding 1.
 
@@ -92,9 +92,11 @@ A slide-by-slide script for a 15-20 minute presentation. Each section has: what 
 
 ## Slide 10 — Finding 2: the highest-risk cluster
 
-**Say:** "One cluster has the sharpest combined risk profile in the entire dataset: diamond/dealer transaction disputes. Money risk 4.08 out of 5. Trust risk 3.92. Urgency 3.92. Twelve tickets — small but explosive. They should not share a queue with voice-room appeals."
+**Say:** "Diamond/dealer disputes are one of the largest *repeat-user* themes: the money/dealer-dispute archetype spans 339 users and ~965 records — second only to multi-problem power users. They should not share a queue with voice-room appeals; they need a transaction/dealer evidence lane with a proof checklist and a decision SLA."
 
 **Show:** [docs/05-findings.md](05-findings.md), Finding 2.
+
+**If challenged on the old "4.08 money risk" number:** "That came from a keyword-based rules path (`1 + 3·has_money`) and did not survive the better model — Mistral reads context and scores it ~1.6. We now justify the lane by repeat-user volume, not that score."
 
 ---
 
@@ -108,7 +110,7 @@ A slide-by-slide script for a 15-20 minute presentation. Each section has: what 
 
 ## Slide 12 — Finding 4: detailed notes are evidence
 
-**Say:** "One of our managers — Albert — writes notes 2-3× richer than peers. After we statistically control for the kind of work each manager handles, his evidence advantage is +8.89 points; the next-best is -1.39. P-value below 0.05. This isn't an artifact."
+**Say:** "One of our managers — Albert — writes notes 2-3× richer than peers. After we statistically control for the kind of work each manager handles, his evidence advantage is +8.89 points over the next-best in the original run — and the larger Mistral run confirms it: every other manager sits 8.8 to 16.4 points below him. P-value below 0.05. This isn't an artifact."
 
 **Show:** [docs/05-findings.md](05-findings.md), Finding 4 table.
 
@@ -118,9 +120,9 @@ A slide-by-slide script for a 15-20 minute presentation. Each section has: what 
 
 ## Slide 13 — What's free vs what's paid
 
-**Say:** "Everything in this run is local and free. Embeddings, clustering, topic modeling, LLM extraction — all running on a laptop. If a budget appears, swapping in OpenAI embeddings or GPT for the extraction step is a one-line change. The prompt and schema stay the same."
+**Say:** "Everything here is local and free of paid APIs. Embeddings, clustering, topic modeling, LLM extraction — Gemma ran on a laptop; the bigger Mistral extraction ran on a rented GPU at about \$0.69/hour. No ticket text hit a paid API. Swapping in OpenAI/GPT later is a one-line change; the prompt and schema stay the same."
 
-**Show:** A reminder of the stack: Python + DuckDB + Polars + Pandas + sentence-transformers + UMAP + HDBSCAN + BERTopic + scikit-learn + statsmodels + Ollama + Gemma 3:4B.
+**Show:** A reminder of the stack: Python + DuckDB + Polars + Pandas + sentence-transformers + UMAP + HDBSCAN + BERTopic + scikit-learn + statsmodels + Ollama (Gemma 3:4B on laptop, Mistral Small 3.2 24B on a rented RunPod GPU).
 
 ---
 
@@ -138,20 +140,20 @@ A slide-by-slide script for a 15-20 minute presentation. Each section has: what 
 
 **Say:** "Three honest caveats."
 
-1. **The 250-ticket extraction is not representative of all 6,728.** It is biased toward evidence-rich, high-risk tickets. So the want taxonomy describes *what high-context tickets are about*, not the full mix. Scaling to 1,000+ extractions is the next step.
-2. **Gemma 3:4B is a small model.** It defaults to `recover_access` when in doubt. We auto-flag invalid outputs and have rule-based + hybrid fallbacks for sanity.
+1. **The extraction still skews to evidence-rich tickets.** `risk_balanced` sampling favours high-context, high-stakes tickets, so the taxonomy describes *what high-context tickets are about*. We scaled from 250 to 1,348 (5.4×) on a GPU; a full ~6,702-record census is the remaining step.
+2. **Model quality.** The current run uses Mistral Small 3.2 24B — a real upgrade over the original Gemma 3:4B (which over-collapsed to `recover_access`). The 1,348-ticket run was 100% schema-valid. We still haven't hand-verified accuracy at scale, and risk scores are model judgments (diamond "money risk" dropped from 4.08 under rules to ~1.6 under Mistral).
 3. **Context-value model is honest.** Rich notes have a small positive but *not* statistically significant correlation with resolution. We do not claim productivity, we claim understandability.
 
 ---
 
 ## Slide 16 — Q&A primer
 
-If asked "why not just use ChatGPT?" → "We have no API budget. Local Gemma 3:4B was the constraint. The pipeline is structured so swapping it out is one line."
+If asked "why not just use ChatGPT?" → "No paid-API budget. We ran local models instead — Gemma 3:4B on a laptop, then Mistral Small 3.2 24B on a ~\$0.69/hr rented GPU. The pipeline is structured so swapping in a hosted model is one line."
 
-If asked "is this reproducible?" → "Yes. One command per stage. See `docs/08-running-it.md`. Latest run: `outputs/option2_20260502_150055/`."
+If asked "is this reproducible?" → "Yes. One command per stage; the GPU path is in `docs/11-runpod-mistral-runbook.md`. Current run: `outputs/option2_20260513_030517/` (Mistral); BERTopic/opportunity layers: `outputs/option2_20260502_150055/` (Gemma)."
 
 If asked "what about Russian/Chinese?" → "The embedding model is multilingual, so clustering works across languages. The LLM prompt accepts any language and emits English."
 
 If asked "is the manager comparison fair?" → "We controlled for category, question kind, role, status, and month with linear fixed effects. Albert's residual is +8.89, p<0.05. The control is not perfect — there are unobserved factors — but it is the right direction."
 
-If asked "what if the LLM hallucinates?" → "Each output is validated against a JSON schema. Bad outputs get a `_quality_flag`. The 250-ticket run had 248 ok and 2 auto-flagged. Anything past that needs human spot-checking, which is the next step."
+If asked "what if the LLM hallucinates?" → "Each output is validated against a JSON schema. Bad outputs get a `_quality_flag`. The 1,348-ticket Mistral run was 1,348 ok, 0 flagged, 0 errors (the original 250-ticket Gemma run had 248 ok, 2 flagged). Hand-verifying accuracy at scale is the next step."
