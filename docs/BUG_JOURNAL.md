@@ -22,6 +22,13 @@ Before reproducing, grep this list for the shape of your bug.
    the `if backend in {...}` block near the end of the loop) or its output is silently
    ignored by the taxonomy stage. Caught while wiring the `deepseek` backend 2026-05-29.
 
+2. **Degenerate LLM graded fields = prompt/schema bug, not model size.** When
+   1-5 scores (money/trust/urgency) or confidence collapse onto one value,
+   "0 bad rows" hides it — the JSON is valid, the signal is dead. Upgrading the
+   model may not help: on the same 250 tickets, Mistral 24B's graded scores were
+   *more* collapsed than Gemma 4B's. Detect with `scripts/compare_extractions.py`;
+   fix the scoring prompt (scale anchors / few-shot) before paying for a bigger model.
+
 <!-- Add bullets as you discover patterns. Examples to cannibalize:
 
 1. **String-literal drift across files.** Same string in 2+ places that
@@ -58,6 +65,12 @@ Before reproducing, grep this list for the shape of your bug.
 
 Add entries here for any reusable harness you build in `scripts/`. Format:
 script name → one-line "what bug it was built to catch".
+
+- `scripts/compare_extractions.py` — profiles an extraction CSV for degenerate
+  (collapsed) graded fields, and diffs two runs field-by-field on shared
+  source_rows. Built to catch "schema-valid but useless" output (Mistral's
+  money=1 / urgency=3 pinning) and to compare a new model (e.g. DeepSeek V4)
+  against the Mistral baseline with zero human labeling.
 
 <!-- Examples:
 - `scripts/render_dashboard.py` — drives the real `main.dashboard` view
