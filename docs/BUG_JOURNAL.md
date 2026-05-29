@@ -71,6 +71,12 @@ script name → one-line "what bug it was built to catch".
   source_rows. Built to catch "schema-valid but useless" output (Mistral's
   money=1 / urgency=3 pinning) and to compare a new model (e.g. DeepSeek V4)
   against the Mistral baseline with zero human labeling.
+- `scripts/consolidate_taxonomy.py` — merges near-duplicate want clusters
+  (centroids above a cosine threshold, average linkage) into a 2-level
+  parent→sub-type taxonomy, re-embedding `_want_text` to match the real
+  clustering geometry. Built to fix flat-KMeans over-splitting of dominant
+  themes (the 7 look-alike "recovery" wants); reports silhouette before/after.
+  Model-free, reads an existing run dir.
 
 <!-- Examples:
 - `scripts/render_dashboard.py` — drives the real `main.dashboard` view
