@@ -147,9 +147,13 @@ In another terminal:
 .venv/bin/python scripts/llm_extract_rich_tickets.py outputs/option2_YYYYMMDD_HHMMSS \
   --backend ollama \
   --model mistral-small3.2:24b \
-  --limit 250 \
+  --limit 1400 \
   --strategy risk_balanced
 ```
+
+The current published run used `--limit 1400` on a rented RunPod GPU and confirmed
+**1,348 tickets** (1,348 ok / 0 bad / 0 error). On a laptop, drop `--limit` to ~250
+for a quick smoke test. See `docs/11-runpod-mistral-runbook.md`.
 
 Safer small-model path:
 
@@ -172,12 +176,12 @@ This writes:
 - `llm_extractions.csv`
 - `llm_extraction_response_schema.json` as the formal JSON Schema sent to Ollama structured-output mode
 
-Local model notes from the first smoke tests:
+Local model notes:
 
-- `gemma3:270m`: installs quickly and proves the local pipeline works, but it is too weak for ticket-intent extraction.
-- `gemma3:1b`: direct extraction produces valid local JSON but over-collapses jobs; hybrid extraction is usable for smoke tests because weak model fields fall back to deterministic rules.
-- `gemma3:4b`: best local result from the first smoke tests. Direct 50-ticket smoke test produced 50 valid rows after enum-alias postprocessing and materially better product-opportunity language.
-- `mistral-small3.2:24b`: current recommended local model to test next, because it should improve instruction following and structured extraction while still fitting on a rented RTX 4090-class GPU.
+- `mistral-small3.2:24b`: **the current production model.** The May-2026 RunPod GPU run read 1,348 tickets with it (1,348 ok / 0 bad / 0 error) and produced the current 20-want taxonomy and longitudinal layer (`outputs/option2_20260513_030517/`). Best instruction-following and structured output; fits a rented RTX 4090-class GPU.
+- `gemma3:4b`: the original free laptop baseline (250-ticket smoke test → 17 wants). Still owns the BERTopic / outlier / opportunity-backlog layers in `outputs/option2_20260502_150055/`, which were not re-run on Mistral.
+- `gemma3:1b`: valid local JSON but over-collapses jobs; only usable via the hybrid path.
+- `gemma3:270m`: proves the pipeline works but too weak for ticket-intent extraction.
 
 Model comparison artifacts:
 
@@ -186,7 +190,7 @@ Model comparison artifacts:
 
 ## Build "What Users Want" Taxonomy
 
-After local LLM extraction (mistral-small3.2:24b recommended for new runs), cluster the extracted want/job/opportunity fields into a real user-want taxonomy:
+After local LLM extraction (mistral-small3.2:24b, the current run's model), cluster the extracted want/job/opportunity fields into a real user-want taxonomy:
 
 ```bash
 .venv/bin/python scripts/build_user_wants_taxonomy.py outputs/option2_YYYYMMDD_HHMMSS

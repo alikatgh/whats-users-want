@@ -35,7 +35,9 @@ ollama pull mistral-small3.2:24b
 # Stage 4 — split BERTopic noise bucket into 26 sub-themes
 .venv/bin/python scripts/split_outlier_bucket.py outputs/option2_<TIMESTAMP>
 
-# Stage 5 — local LLM extraction (250 rich tickets, Mistral Small 3.2)
+# Stage 5 — local LLM extraction (laptop smoke path: 250 tickets).
+# The published current run used --limit 1400 on a RunPod GPU → 1,348 read.
+# See docs/11-runpod-mistral-runbook.md for the GPU run.
 .venv/bin/python scripts/llm_extract_rich_tickets.py outputs/option2_<TIMESTAMP> \
   --backend ollama \
   --model mistral-small3.2:24b \
@@ -125,8 +127,8 @@ print(con.execute(\"SELECT table_name FROM information_schema.tables ORDER BY 1\
 | 2 | 1-2 min | Reuses Stage 1 embeddings |
 | 3 | 30-60 s | Statistical only |
 | 4 | 1-2 min | Reuses Stage 1 embeddings |
-| 5 (250 tickets, mistral-small3.2:24b) | 20-60 min | Bottleneck is local model inference and GPU speed |
-| 6 | 30 s | 250 short texts |
+| 5 (250 tickets, mistral-small3.2:24b) | 20-60 min | Laptop smoke test. The published run did **1,348 on a RunPod GPU** (`docs/11-runpod-mistral-runbook.md`) |
+| 6 | 30-60 s | Clusters the extracted records (250 laptop / 1,348 published) |
 
 ## Where things land
 

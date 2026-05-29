@@ -1,6 +1,6 @@
 # 02 — Pipeline Walkthrough
 
-The pipeline has seven stages. Each is a separate script in [scripts/](../scripts/). They write into the same run directory under `outputs/option2_<timestamp>/`. The current latest run is `outputs/option2_20260502_150055/`.
+The pipeline has seven stages. Each is a separate script in [scripts/](../scripts/). They write into the same run directory under `outputs/option2_<timestamp>/`. The current **want layer** (Stages 5–7) is `outputs/option2_20260513_030517/` (Mistral, 1,348 tickets). The **BERTopic / outlier / opportunity layers** (Stages 2–4) live only in the earlier free run `outputs/option2_20260502_150055/` (Gemma) and were not re-run on Mistral.
 
 ```
 Stage 1  option2_pipeline.py          → clean, embed, cluster, score managers
@@ -117,8 +117,8 @@ The result is 53 named topics like `0_account_restore_deleted_number`, `1_diamon
 
 **What it does.**
 
-1. **Picks 250 candidate tickets.** Strategy `risk_balanced` favours tickets that are evidence-rich (so the model has something to work with) and high-risk (money, trust, abuse).
-2. **Calls a local model via Ollama.** No API key, no paid inference, no data leaving the machine. The original run used Gemma 3:4B; new runs default to Mistral Small 3.2 24B.
+1. **Picks the highest-signal candidate tickets** up to `--limit`. Strategy `risk_balanced` favours tickets that are evidence-rich (so the model has something to work with) and high-risk (money, trust, abuse). The current run read **1,348**; the original laptop baseline read 250.
+2. **Calls a local model via Ollama.** No API key, no paid inference, no data leaving the machine. The current run uses Mistral Small 3.2 24B (RunPod GPU); the original laptop baseline used Gemma 3:4B.
 3. **Extracts a JSON record per ticket** with these fields:
     - `literal_request` — what the user said
     - `actual_user_want` — what they actually want
@@ -140,8 +140,8 @@ The result is 53 named topics like `0_account_restore_deleted_number`, `1_diamon
 **Local LLM model trade-offs:**
 - `gemma3:270m` — too weak for ticket reasoning. Empty/template outputs.
 - `gemma3:1b` — produces valid JSON but over-collapses jobs.
-- `gemma3:4b` — usable. 248/250 valid, 2 invalid-job outputs auto-flagged. This is what the current run uses.
-- `mistral-small3.2:24b` — recommended next local model to test for stronger instruction-following and structured output on rented GPU hardware.
+- `mistral-small3.2:24b` — **what the current run uses.** 1,348/1,348 valid (0 bad / 0 error) on RunPod GPU; strongest instruction-following and structured output.
+- `gemma3:4b` — the original laptop baseline. 248/250 valid, 2 invalid-job outputs auto-flagged. Still owns the BERTopic/outlier layers.
 
 **Key outputs.**
 - `llm_extraction_candidates.csv` — the 250 chosen tickets
@@ -156,13 +156,13 @@ The result is 53 named topics like `0_account_restore_deleted_number`, `1_diamon
 
 ## Stage 6 — `build_user_wants_taxonomy.py`
 
-**Purpose.** Stage 5 gave us 250 structured records. Stage 6 collapses them into a real taxonomy of *what users want*, using the LLM-extracted text rather than the original messy ticket text.
+**Purpose.** Stage 5 gave us the structured records (1,348 on the current run). Stage 6 collapses them into a real taxonomy of *what users want*, using the LLM-extracted text rather than the original messy ticket text.
 
 **What it does.**
 
 1. For each extracted ticket, builds a `_want_text` by concatenating `actual_user_want | job_to_be_done | product_opportunity | literal_request`.
 2. Embeds those `_want_text` strings with the same multilingual sentence-transformers model.
-3. Clusters them. First tries HDBSCAN (lets tickets be unclustered). If too many tickets fall into the noise bucket, falls back to KMeans (forces every ticket into a cluster). For 250 tickets, KMeans wins and gives 17 wants with 0 outliers.
+3. Clusters them. First tries HDBSCAN (lets tickets be unclustered). If too many tickets fall into the noise bucket, falls back to KMeans (forces every ticket into a cluster). On the current 1,348-ticket run this yields **20 wants**; the original 250-ticket run gave 17.
 4. For each cluster, computes:
     - size and share
     - top jobs and emotions
@@ -173,8 +173,8 @@ The result is 53 named topics like `0_account_restore_deleted_number`, `1_diamon
 6. Writes a Markdown summary, a CSV taxonomy, a CSV per-ticket assignments table, and an Excel workbook with **want × emotion**, **want × money_risk**, and **want × manager** cross-tabs.
 
 **Key outputs.**
-- `user_wants_taxonomy.csv` — 17 rows, one per discovered want
-- `user_wants_assignments.csv` — 250 rows, one per ticket
+- `user_wants_taxonomy.csv` — one row per discovered want (20 on the current run)
+- `user_wants_assignments.csv` — one row per LLM-read ticket (1,348 on the current run)
 - `user_wants_workbook.xlsx`
 - `user_wants_findings.md`
 
