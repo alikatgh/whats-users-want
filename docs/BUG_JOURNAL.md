@@ -14,6 +14,14 @@ Global rules: `~/.claude/CLAUDE.md`.
 
 Before reproducing, grep this list for the shape of your bug.
 
+1. **Producer/consumer filename coupling (Stage 5 → Stage 6).** A new extraction
+   backend writes `<backend>_<model>_extractions.csv`, but
+   `build_user_wants_taxonomy.py` only auto-discovers a fixed filename priority list
+   (`ollama_*`, `ollama_extractions.csv`, `llm_extractions.csv`, `rules_extractions.csv`).
+   A new backend must ALSO write the `llm_extractions.csv` alias (in `run_extraction`,
+   the `if backend in {...}` block near the end of the loop) or its output is silently
+   ignored by the taxonomy stage. Caught while wiring the `deepseek` backend 2026-05-29.
+
 <!-- Add bullets as you discover patterns. Examples to cannibalize:
 
 1. **String-literal drift across files.** Same string in 2+ places that

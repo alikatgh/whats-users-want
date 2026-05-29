@@ -594,7 +594,7 @@ def parse_json_object(text: str) -> dict[str, Any]:
     return json.loads(text)
 
 
-def call_openai(row: pd.Series, model: str) -> dict[str, Any]:
+def call_openai(row: pd.Series, model: str, base_url: str | None = None, api_key: str | None = None) -> dict[str, Any]:
     """Send one ticket to OpenAI's Chat Completions API and return parsed JSON.
 
     This is the "premium" backend: it produces the best output but costs
@@ -632,18 +632,27 @@ def call_openai(row: pd.Series, model: str) -> dict[str, Any]:
     """
     from openai import OpenAI
 
-    client = OpenAI()
+    # base_url/api_key default to None, which makes OpenAI() read its own env vars
+    # (OPENAI_BASE_URL / OPENAI_API_KEY). Pass them explicitly for DeepSeek or any
+    # other OpenAI-compatible endpoint.
+    client = OpenAI(base_url=base_url, api_key=api_key)
     schema_text = json.dumps(SCHEMA, ensure_ascii=False, indent=2)
     user_prompt = candidate_prompt(row) + "\n\nReturn JSON with this schema:\n" + schema_text
-    response = client.chat.completions.create(
-        model=model,
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[
+    create_kwargs: dict[str, Any] = {
+        "model": model,
+        "temperature": 0,
+        "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
-    )
+    }
+    try:
+        response = client.chat.completions.create(response_format={"type": "json_object"}, **create_kwargs)
+    except Exception:
+        # Some OpenAI-compatible endpoints / reasoning models (e.g. certain DeepSeek
+        # variants) reject response_format=json_object. The prompt already demands JSON
+        # and parse_json_object tolerates prose-wrapped JSON, so retry without it.
+        response = client.chat.completions.create(**create_kwargs)
     content = response.choices[0].message.content or "{}"
     result = parse_json_object(content)
     result.setdefault("source_row", str(row.get("source_row", "")))
@@ -1703,7 +1712,7 @@ def default_output_stem(backend: str, model: str) -> str:
         only 2 elements the speed difference is meaningless — it's just a
         readability convention: "these are unordered choices".
     """
-    if backend in {"ollama", "openai"}:
+    if backend in {"ollama", "openai", "deepseek"}:
         return f"{backend}_{safe_model_slug(model)}_extractions"
     return f"{backend}_extractions"
 
@@ -1718,6 +1727,8 @@ def run_extraction(
     ollama_url: str,
     timeout: int,
     output_stem: str,
+    base_url: str | None = None,
+    api_key: str | None = None,
 ) -> pd.DataFrame:
     """Iterate candidates, dispatch to the chosen backend, and write JSONL+CSV.
 
@@ -1810,12 +1821,12 @@ def run_extraction(
                     result = call_ollama(row, model=model, ollama_url=ollama_url, timeout=timeout)
                 elif backend == "ollama_hybrid":
                     result = call_ollama_hybrid(row, model=model, ollama_url=ollama_url, timeout=timeout)
-                elif backend == "openai":
-                    result = call_openai(row, model=model)
+                elif backend in {"openai", "deepseek"}:
+                    result = call_openai(row, model=model, base_url=base_url, api_key=api_key)
                 else:
                     raise ValueError(f"Unknown backend: {backend}")
                 result = normalize_result_enums(result)
-                quality_flag = output_quality_flag(result, source_row) if backend in {"ollama", "ollama_hybrid", "openai"} else None
+                quality_flag = output_quality_flag(result, source_row) if backend in {"ollama", "ollama_hybrid", "openai", "deepseek"} else None
                 result["_status"] = "bad_output" if quality_flag else "ok"
                 if quality_flag:
                     result["_quality_flag"] = quality_flag
@@ -1842,8 +1853,9 @@ def run_extraction(
         # Keep stable aliases for dashboards/manual review while preserving per-model files.
         (run_dir / f"{backend}_extractions.jsonl").write_text(output_path.read_text(encoding="utf-8"), encoding="utf-8")
         extracted.to_csv(run_dir / f"{backend}_extractions.csv", index=False)
-    if backend in {"rules", "ollama", "ollama_hybrid"}:
-        # Keep the historical generic filenames pointed at the current free/local result.
+    if backend in {"rules", "ollama", "ollama_hybrid", "deepseek"}:
+        # Keep the historical generic filenames pointed at the current result so the
+        # taxonomy stage (which looks for llm_extractions.csv) picks up a deepseek run too.
         extracted.to_csv(run_dir / "llm_extractions.csv", index=False)
     return extracted
 
@@ -1983,7 +1995,12 @@ def run(args: argparse.Namespace) -> None:
     )
     write_static_assets(run_dir, candidates)
     dry_run = args.dry_run
-    if args.backend == "openai" and not os.environ.get("OPENAI_API_KEY"):
+    base_url = args.base_url
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if args.backend == "deepseek":
+        base_url = base_url or os.environ.get("DEEPSEEK_BASE_URL") or "https://api.deepseek.com"
+        api_key = api_key or os.environ.get("DEEPSEEK_API_KEY")
+    if args.backend in {"openai", "deepseek"} and not api_key:
         dry_run = True
     extracted = None
     if dry_run:
@@ -2008,6 +2025,8 @@ def run(args: argparse.Namespace) -> None:
             ollama_url=args.ollama_url,
             timeout=args.timeout,
             output_stem=output_stem,
+            base_url=base_url,
+            api_key=api_key,
         )
         status_counts = (
             extracted.get("_status", pd.Series(dtype=str))
@@ -2082,7 +2101,8 @@ def parse_args() -> argparse.Namespace:
         help="Minimum flattened ticket text length. Use 1 with --min-context-score 0 for a full-corpus AI census.",
     )
     parser.add_argument("--strategy", choices=["highest_context", "risk_balanced", "issue_balanced"], default="risk_balanced")
-    parser.add_argument("--backend", choices=["rules", "ollama", "ollama_hybrid", "openai"], default="rules")
+    parser.add_argument("--backend", choices=["rules", "ollama", "ollama_hybrid", "openai", "deepseek"], default="rules")
+    parser.add_argument("--base-url", default=os.environ.get("OPENAI_BASE_URL"), help="OpenAI-compatible API base URL (e.g. https://api.deepseek.com). Defaults to $OPENAI_BASE_URL; the 'deepseek' backend defaults it to https://api.deepseek.com.")
     parser.add_argument("--model", default=os.environ.get("LOCAL_LLM_MODEL") or os.environ.get("OPENAI_MODEL") or "mistral-small3.2:24b")
     parser.add_argument("--ollama-url", default=os.environ.get("OLLAMA_URL", "http://localhost:11434"))
     parser.add_argument("--timeout", type=int, default=180)

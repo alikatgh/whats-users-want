@@ -16,11 +16,12 @@ Read in this order before the presentation:
 10. [10-runpod-gpu-101.md](10-runpod-gpu-101.md) — what happens after renting a GPU: terminal access, downloads, costs, uploads, and when to stop the pod.
 11. [11-runpod-mistral-runbook.md](11-runpod-mistral-runbook.md) — exact RunPod/Mistral operating runbook, including smoke tests, failure recovery, output packaging, and volume cleanup.
 12. [12-management-slide-brief.md](12-management-slide-brief.md) — NotebookLM-ready slide text and positioning for management: simple, careful, and not framed as a chatbot.
+13. [13-deepseek-v4-census.md](13-deepseek-v4-census.md) — operating plan for the full-corpus DeepSeek V4 run that supersedes the Mistral run (prepared, not yet executed).
 
 For deep "how does it work" engineering questions, the next folder over has it:
 
-13. [engineering/](engineering/) — meticulous, function-by-function deep dives, exact formulas, all prompts, all output schemas.
-14. [api/](api/) — auto-generated browsable HTML API docs from script docstrings. Open [api/index.html](api/index.html) in a browser.
+14. [engineering/](engineering/) — meticulous, function-by-function deep dives, exact formulas, all prompts, all output schemas.
+15. [api/](api/) — auto-generated browsable HTML API docs from script docstrings. Open [api/index.html](api/index.html) in a browser.
 
 ## Building the full styled site
 
