@@ -103,7 +103,7 @@ If both steps assign the majority of tickets to the same conceptual buckets, the
 
 ## Limitation
 
-The 1,381 tickets in topic `-1` are BERTopic's "I am not confident enough to label these" bucket. We do not throw them away; Stage 4 (`split_outlier_bucket.py`) re-clusters them with KMeans to surface 26 sub-themes. That is intentional engineering: keep BERTopic's conservative clustering, but do not lose the 21% of the dataset it left unlabelled.
+The 1,381 tickets in topic `-1` are BERTopic's "I am not confident enough to label these" bucket. (1,381 is the raw BERTopic `-1` count; it becomes **1,331** once re-merged into the semantic frame that Stage 4 consumes — a few rows drop in the join. Both numbers are correct; they refer to before vs after that merge.) We do not throw them away; Stage 4 (`split_outlier_bucket.py`) re-clusters them with KMeans to surface 26 sub-themes. That is intentional engineering: keep BERTopic's conservative clustering, but do not lose the 21% of the dataset it left unlabelled.
 
 ## Command-line
 

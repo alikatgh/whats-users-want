@@ -91,3 +91,17 @@ Do not clean or regenerate `outputs/`, `site/`, `static/`, caches, or
 - When editing analysis code, preserve output schemas unless the user asks for a
   schema change.
 - Report which run directory and commands were used.
+
+## Bug Journal And Reusable Tools
+
+Before debugging a symptom or building test scaffolding from scratch, check:
+
+- `docs/BUG_JOURNAL.md` — every bug fixed here, with file:line and the
+  generalizable lesson, plus a "Patterns to scan for FIRST" cheat-sheet. Grep it
+  before reproducing.
+- `docs/engineering/CODE_VERIFICATION.md` — latest code↔docs audit (verdict +
+  corrected line numbers). Re-run only if `git log` shows script changes since its date.
+- `scripts/` — reusable harnesses; use an existing one instead of regenerating scaffold.
+
+When you fix a bug, append a 5-line entry to the journal in the same commit as the
+fix. (Global rules: `~/.claude/CLAUDE.md` §1.)

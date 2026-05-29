@@ -98,7 +98,7 @@ If `enriched_tickets.csv` is available, merge in `manager`, `Question`, `Status`
 
 ### 8. Write outputs (`write_workbook`, `write_findings`)
 
-Excel workbook has four sheets:
+Excel workbook has five sheets:
 - **`taxonomy`** — one row per discovered want.
 - **`assignments`** — one row per ticket (250 rows).
 - **`want_x_emotion`** — pd.crosstab(want_label, user_emotion).
