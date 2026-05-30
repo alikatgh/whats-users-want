@@ -42,11 +42,7 @@
     bindNavigation();
     bindStaticControls();
     try {
-      if (window.location.protocol === "file:") {
-        throw new Error(
-          "Open this readout through http://, not file://. Run: python3 -m http.server --directory outputs/static_what_users_want 38482"
-        );
-      }
+      // Runs as plain static HTML (data is baked into data/bundle.js) — file:// works.
       await loadData();
       prepareData();
       setHealth("CSV package loaded. No AI is running in this page.", "ok");
@@ -128,11 +124,13 @@
   }
 
   async function loadData() {
-    const jsonNames = ["manifest", "longitudinalMeta", "runMeta", "projectionMeta"];
-    const csvNames = ["trends", "emerging", "assignments", "summary", "journeys", "events", "archetypes"];
-    const jsons = await Promise.all(jsonNames.map(async (key) => [key, await fetchJsonOptional(FILES[key])]));
-    const csvs = await Promise.all(csvNames.map(async (key) => [key, parseCsv(await fetchText(FILES[key]))]));
-    state.data = Object.fromEntries([...jsons, ...csvs]);
+    // Data is baked into data/bundle.js (window.WUW_DATA) and loaded via a <script> tag,
+    // so the readout runs as plain static HTML — no fetch(), works from file:// and any
+    // CDN with no server. Rebuild the bundle with scripts/export_static_readout.py.
+    if (!window.WUW_DATA) {
+      throw new Error("data/bundle.js is missing — rebuild the package with export_static_readout.py");
+    }
+    state.data = window.WUW_DATA;
   }
 
   async function fetchText(name) {

@@ -5887,10 +5887,7 @@ body[data-view="lookup"]:not(.has-uid-result) .uid-search-row {
 }
 body[data-view="lookup"]:not(.has-uid-result) .uid-search-row::before,
 body[data-view="lookup"]:not(.has-uid-result) .uid-search-row::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px;
-  pointer-events: none;
+  display: none; /* removed the animated rainbow "AI glow" — clashed with the flat/calm reskin */
 }
 /* Inner soft ribbons hugging the pill — slow rotation, heavily diffused */
 body[data-view="lookup"]:not(.has-uid-result) .uid-search-row::before {

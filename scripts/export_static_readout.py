@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
-"""Package the static management readout from already-generated run outputs.
+"""Bake a pipeline run's data into the self-contained static readout.
 
-This script deliberately does not run embeddings, LLM extraction, clustering, or
-Streamlit. It copies the static HTML/CSS/JS shell and the existing CSV/JSON files
-needed by the browser app into one CDN-ready folder.
+The deliverable is the folder ``static/what_users_want_cdn/`` itself: a plain
+static site whose data lives in ``data/bundle.js`` (``window.WUW_DATA``), loaded
+via a ``<script>`` tag. No ``fetch()``, no server — open ``index.html`` directly
+(``file://``) or upload the folder to any CDN.
+
+By DEFAULT this script writes ``data/bundle.js`` (+ ``manifest.json``) straight
+into ``static/what_users_want_cdn/data/`` — it does not create a separate copy.
+Pass ``--out-dir DIR`` to ALSO emit a standalone copy (shell + data) elsewhere.
+
+It runs no embeddings/LLM/clustering — just reads existing outputs. Person-
+attribution columns (manager names) are dropped before baking.
+
+Usage:
+  python scripts/export_static_readout.py <run_dir> [--out-dir DIR] [--force]
 """
 
 from __future__ import annotations
@@ -15,23 +26,23 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_DIR = ROOT / "static" / "what_users_want_cdn"
-DEFAULT_OUT_DIR = ROOT / "outputs" / "static_what_users_want"
 
-DATA_FILES = [
-    "longitudinal_metadata.json",
-    "run_metadata.json",
-    "user_wants_projection_metadata.json",
-    "longitudinal_want_monthly_trends.csv",
-    "longitudinal_emerging_wants.csv",
-    "longitudinal_user_journeys.csv",
-    "longitudinal_user_journey_events.csv",
-    "longitudinal_journey_archetypes.csv",
-    "user_wants_all_assignments.csv",
-    "user_wants_full_corpus_summary.csv",
-]
+# run_dir filename -> the key the browser app (app.js FILES) expects in window.WUW_DATA
+FILE_TO_KEY = {
+    "longitudinal_metadata.json": "longitudinalMeta",
+    "run_metadata.json": "runMeta",
+    "user_wants_projection_metadata.json": "projectionMeta",
+    "longitudinal_want_monthly_trends.csv": "trends",
+    "longitudinal_emerging_wants.csv": "emerging",
+    "longitudinal_user_journeys.csv": "journeys",
+    "longitudinal_user_journey_events.csv": "events",
+    "longitudinal_journey_archetypes.csv": "archetypes",
+    "user_wants_all_assignments.csv": "assignments",
+    "user_wants_full_corpus_summary.csv": "summary",
+}
+DATA_FILES = list(FILE_TO_KEY)
 
 ATTRIBUTION_COLUMNS = {
     "manager",
@@ -43,123 +54,111 @@ ATTRIBUTION_COLUMNS = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Export a static CDN-ready readout using existing CSV outputs."
-    )
-    parser.add_argument(
-        "run_dir",
-        type=Path,
-        help="Existing pipeline run directory, for example outputs/option2_20260513_030517.",
-    )
-    parser.add_argument(
-        "--out-dir",
-        type=Path,
-        default=DEFAULT_OUT_DIR,
-        help=f"Output folder for the static site. Default: {DEFAULT_OUT_DIR}",
-    )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Replace the output folder if it already exists.",
-    )
+    parser = argparse.ArgumentParser(description="Bake run data into the self-contained static readout.")
+    parser.add_argument("run_dir", type=Path, help="Pipeline run dir, e.g. outputs/option2_20260513_030517.")
+    parser.add_argument("--out-dir", type=Path, default=None,
+                        help="Optional: also write a standalone copy (shell + data) here, for upload.")
+    parser.add_argument("--force", action="store_true", help="Replace --out-dir if it already exists.")
     return parser.parse_args()
 
 
 def copy_template(out_dir: Path) -> None:
+    """Copy the static shell (index.html, assets, vendor, …) but not any data/."""
     for item in TEMPLATE_DIR.iterdir():
-        target = out_dir / item.name
         if item.name == "data":
             continue
+        target = out_dir / item.name
         if item.is_dir():
             shutil.copytree(item, target)
         else:
             shutil.copy2(item, target)
 
 
-def copy_data(run_dir: Path, out_dir: Path) -> list[dict[str, object]]:
-    data_dir = out_dir / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    copied: list[dict[str, object]] = []
+def is_attribution_column(name: str) -> bool:
+    return name.strip().lower() in ATTRIBUTION_COLUMNS
+
+
+def read_redacted_rows(source: Path) -> list[dict[str, str]]:
+    """Read a CSV into row dicts, dropping person-attribution columns."""
+    with source.open("r", encoding="utf-8", newline="") as src:
+        reader = csv.DictReader(src)
+        if reader.fieldnames is None:
+            return []
+        keep = [n for n in reader.fieldnames if not is_attribution_column(n)]
+        return [{k: (row.get(k) or "") for k in keep} for row in reader]
+
+
+def build_data(run_dir: Path) -> tuple[dict[str, object], list[dict[str, object]]]:
+    data: dict[str, object] = {}
+    files: list[dict[str, object]] = []
     missing: list[str] = []
     for name in DATA_FILES:
         source = run_dir / name
         if not source.exists():
             missing.append(name)
             continue
-        target = data_dir / name
-        if source.suffix.lower() == ".csv":
-            copy_redacted_csv(source, target)
-        else:
-            shutil.copy2(source, target)
-        copied.append({"name": name, "bytes": target.stat().st_size})
+        key = FILE_TO_KEY[name]
+        data[key] = read_redacted_rows(source) if source.suffix.lower() == ".csv" else json.loads(source.read_text(encoding="utf-8"))
+        files.append({"name": name, "key": key, "rows": len(data[key]) if isinstance(data[key], list) else None})
     if missing:
-        raise FileNotFoundError(
-            "The run directory is missing required static readout files: "
-            + ", ".join(missing)
-        )
-    return copied
+        raise FileNotFoundError("The run directory is missing required readout files: " + ", ".join(missing))
+    return data, files
 
 
-def copy_redacted_csv(source: Path, target: Path) -> None:
-    """Copy a CSV while dropping person-attribution columns from the static package."""
-    with source.open("r", encoding="utf-8", newline="") as src:
-        reader = csv.DictReader(src)
-        if reader.fieldnames is None:
-            target.write_text("", encoding="utf-8")
-            return
-        fieldnames = [name for name in reader.fieldnames if not is_attribution_column(name)]
-        with target.open("w", encoding="utf-8", newline="") as dst:
-            writer = csv.DictWriter(dst, fieldnames=fieldnames, extrasaction="ignore")
-            writer.writeheader()
-            for row in reader:
-                writer.writerow(row)
-
-
-def is_attribution_column(name: str) -> bool:
-    lowered = name.strip().lower()
-    return lowered in ATTRIBUTION_COLUMNS
-
-
-def write_manifest(run_dir: Path, out_dir: Path, files: list[dict[str, object]]) -> None:
-    manifest = {
-        "packaged_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "run_name": run_dir.name,
-        "source_run_dir": str(run_dir.resolve()),
-        "note": "Static package copied from existing CSV/JSON outputs. No AI or pipeline regeneration ran during export. Person-attribution columns are removed from packaged CSV files.",
-        "files": files,
-    }
-    (out_dir / "data" / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+def write_bundle(folder: Path, data: dict[str, object], manifest: dict[str, object]) -> int:
+    """Write data/bundle.js (window.WUW_DATA) + manifest.json into a readout folder."""
+    data_dir = folder / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    bundle = data_dir / "bundle.js"
+    bundle.write_text("window.WUW_DATA = " + json.dumps({**data, "manifest": manifest}, ensure_ascii=False) + ";\n", encoding="utf-8")
+    (data_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return bundle.stat().st_size
 
 
 def main() -> None:
     args = parse_args()
     run_dir = args.run_dir.resolve()
-    out_dir = args.out_dir.resolve()
     if not run_dir.exists():
         raise FileNotFoundError(f"Run directory does not exist: {run_dir}")
     if not TEMPLATE_DIR.exists():
         raise FileNotFoundError(f"Static template directory does not exist: {TEMPLATE_DIR}")
-    if out_dir.exists():
-        if not args.force:
-            raise FileExistsError(f"Output directory already exists. Use --force to replace it: {out_dir}")
-        shutil.rmtree(out_dir)
-    out_dir.mkdir(parents=True)
-    copy_template(out_dir)
-    files = copy_data(run_dir, out_dir)
-    write_manifest(run_dir, out_dir, files)
+
+    data, files = build_data(run_dir)
+    manifest = {
+        "packaged_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "run_name": run_dir.name,
+        "source_run_dir": str(run_dir.resolve()),
+        "note": "Self-contained static readout: data baked into data/bundle.js (window.WUW_DATA). "
+        "No fetch, no server — runs from file:// or any CDN. Person-attribution columns removed.",
+        "files": files,
+    }
+
+    # Default: bake straight into the CDN folder (the deliverable).
+    bundle_bytes = write_bundle(TEMPLATE_DIR, data, manifest)
+    targets = [str(TEMPLATE_DIR)]
+
+    # Optional: also emit a standalone copy (shell + data) for upload elsewhere.
+    if args.out_dir is not None:
+        out = args.out_dir.resolve()
+        if out.exists():
+            if not args.force:
+                raise FileExistsError(f"--out-dir already exists. Use --force to replace it: {out}")
+            shutil.rmtree(out)
+        out.mkdir(parents=True)
+        copy_template(out)
+        write_bundle(out, data, manifest)
+        targets.append(str(out))
+
     print(
         json.dumps(
             {
                 "status": "ok",
-                "out_dir": str(out_dir),
-                "index": str(out_dir / "index.html"),
-                "data_files": len(files),
-                "note": "Upload this folder to the internal CDN, or preview it with: python3 -m http.server --directory "
-                + str(out_dir)
-                + " 38482",
+                "deliverable": str(TEMPLATE_DIR),
+                "index": str(TEMPLATE_DIR / "index.html"),
+                "bundle_bytes": bundle_bytes,
+                "data_keys": len(files),
+                "wrote": targets,
+                "note": "Open static/what_users_want_cdn/index.html directly (file://) or upload that folder to the CDN.",
             },
             indent=2,
         )
