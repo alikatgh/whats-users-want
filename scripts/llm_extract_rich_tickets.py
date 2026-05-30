@@ -86,7 +86,7 @@ SCHEMA: dict[str, Any] = {
     "user_emotion": "one of: neutral, confused, anxious, angry, desperate, betrayed, urgent, hopeful, unknown",
     "urgency_level": "integer 1-5",
     "trust_risk_level": "integer 1-5",
-    "money_risk_level": "integer 1-5",
+    "money_risk_level": "integer 1-5 financial risk: 1=no money at stake; 2=money/diamonds mentioned but nothing at risk (e.g. how to buy diamonds, SVIP question); 3=recoverable transaction friction (recharge pending, diamonds not yet delivered); 4=real funds/diamonds disputed or at risk (dealer dispute, paid but not delivered); 5=confirmed loss or fraud (scammed, money/diamonds gone). Diamonds and recharge are real paid currency, not play money.",
     "safety_policy_risk_level": "integer 1-5",
     "evidence_present": ["screenshots", "urls", "timestamps", "uid", "room_or_group_id", "ban_reason", "money_amount", "counterparty", "user_claim", "none"],
     "evidence_missing": ["list of evidence needed to resolve or escalate safely"],
@@ -110,6 +110,7 @@ SYSTEM_PROMPT = """You are analyzing real support tickets from IMO/BIGO-style su
 Extract what the user actually wants, not only the literal category.
 Preserve uncertainty. Do not invent facts. If evidence is missing, say what is missing.
 Treat screenshots/URLs/timestamps/ban reasons/IDs as evidence, not noise.
+Score money_risk_level on its defined 1-5 scale: diamonds and recharge are real paid currency, so disputes or loss involving them are genuine financial risk (4-5), while a passing money mention with nothing at stake is low (1-2). Apply the same calibrated 1-5 judgment to trust/urgency/safety — do not default every ticket to the same number.
 Return exactly one JSON object matching the requested schema. No markdown.
 """
 

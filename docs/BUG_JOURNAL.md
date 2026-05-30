@@ -77,6 +77,10 @@ script name → one-line "what bug it was built to catch".
   clustering geometry. Built to fix flat-KMeans over-splitting of dominant
   themes (the 7 look-alike "recovery" wants); reports silhouette before/after.
   Model-free, reads an existing run dir.
+- `scripts/show_extractions.py` — CLI side-by-side viewer: ticket text next to each
+  model's job/want/risk scores, for human spot-checking which model reads better.
+- `scripts/build_compare_view.py` — generates a self-contained HTML page (embedded
+  data) comparing two extraction runs in the browser, graded-score diffs highlighted.
 
 <!-- Examples:
 - `scripts/render_dashboard.py` — drives the real `main.dashboard` view
