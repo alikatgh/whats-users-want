@@ -43,6 +43,7 @@ Each module introduces what it needs.
 | [10 — Pipeline design](10-pipeline-design/README.md) | Stages, soft-fail, fallbacks, idempotency, provenance | 6 |
 | [11 — The headline findings](11-the-findings/README.md) | How the analysis arrived at "users want explanations, not just unbans" | 4 |
 | [12 — Exercises](12-exercises/README.md) | Concrete extensions you can implement to deepen understanding | 5 |
+| [13 — The static frontend](13-the-static-frontend/README.md) | The self-contained CDN readout: no server, embedded data, the calm design system | 6 |
 | [glossary.md](glossary.md) | Every term, with a one-paragraph plain-English definition | 1 |
 
 ## How long this takes
